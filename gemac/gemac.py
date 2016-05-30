@@ -28,14 +28,14 @@ def gemac(
                         rxData, rxDataValid, rxGoodFrame, rxBadFrame,
                         txData2Engine, rxData2Client)
     
-    txEngineInst = txEngine(txData2Engine, transmitEN, txData2GMII)
+    txEngineInst = txEngine(gtxClk, txData2Engine, transmitEN, txData2GMII)
     
-    rxEngineInst = rxEngine(rxData2Client, rxData2Engine)
+    rxEngineInst = rxEngine(gmiiRxClk, rxData2Client, rxData2Engine)
     
     flowControlInst = flowControl(pauseReq, pauseVal, transmitPauseFrame)
     
     gmiiInst = gmii(txData2GMII, rxData2Engine,
-                    gmiiTxd, gmiiTxEn, gmiiTxEr,
+                    gtxClk, gmiiTxd, gmiiTxEn, gmiiTxEr,
                     gmiiRxClk, gmiiRxd, gmiiRxDv, gmiiRxEr)
     
     mdioInst = mdio(hostClk, hostOpcode, hostAddr, hostWriteData, hostReadData, hostMIIM_sel, hostReq, hostMIIM_rdy
