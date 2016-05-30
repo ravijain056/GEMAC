@@ -23,16 +23,17 @@ def gemac(
     transmitPauseFrame = Signal(bool(0))
     txData2Engine  = Signal(intbv(0, min = 0, max = 255))
     txData2Client  = Signal(intbv(0, min = 0, max = 255))
+    rxDataError = Signal(bool(0))
     
     clientInst = client(gtxClk, txData, txDataValid, txIFG_delay, tx_ack, tx_underrun,
-                        rxData, rxDataValid, rxGoodFrame, rxBadFrame,
-                        txData2Engine, rxData2Client)
+                        gmiiRxClk, rxData, rxDataValid, rxGoodFrame, rxBadFrame,
+                        txData2Engine, rxData2Client, rxDataError)
     
-    txEngineInst = txEngine(gtxClk, txData2Engine, transmitEN, txData2GMII)
+    txEngineInst = txEngine(gtxClk, txData2Engine, txData2GMII, transmitPauseFrame, sampledPauseVal)
     
-    rxEngineInst = rxEngine(gmiiRxClk, rxData2Client, rxData2Engine)
+    rxEngineInst = rxEngine(gmiiRxClk, rxData2Client, rxData2Engine, rxDataError)
     
-    flowControlInst = flowControl(pauseReq, pauseVal, transmitPauseFrame)
+    flowControlInst = flowControl(pauseReq, pauseVal, transmitPauseFrame, sampledPauseVal)
     
     gmiiInst = gmii(txData2GMII, rxData2Engine,
                     gtxClk, gmiiTxd, gmiiTxEn, gmiiTxEr,

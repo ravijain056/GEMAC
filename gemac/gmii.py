@@ -8,7 +8,7 @@ def gmii(txData2GMII, rxData2Engine,
     """
     *GMII - PHY Interface for 1 - Gigabit Ethernet operation*
     
-    gtxClk - Reference Clk for transmit operation from Client
+    gtxClk - Reference Clk for transmit operation from Host
     txData2GMII - Data from Transmit Engine to be passed onto PHY 
     gmiiTxd - transmit Data to PHY
     gmiiTxEn - Control Signal to PHY
