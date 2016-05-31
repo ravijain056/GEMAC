@@ -2,8 +2,7 @@ from myhdl import block, instances
 
 
 @block
-def txEngine(gtxClk, txData2Engine, txData2GMII,
-             transmitPauseFrame, sampledPauseVal):
+def txEngine(gtxclk, txd2engine, txd2gmii, txpause, sampled_pauseval):
 
     """
     *Transmit Engine*

@@ -2,7 +2,7 @@ from myhdl import block, instances
 
 
 @block
-def rxEngine(gmiiRxClk, rxData2Client, rxData2Engine, rxDataError):
+def rxEngine(rxclk, rxd2client, rxd2engine, rxder):
 
     """
     *Receiver Engine*

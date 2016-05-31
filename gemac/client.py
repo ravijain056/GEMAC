@@ -2,10 +2,8 @@ from myhdl import block, instances
 
 
 @block
-def client(gtxClk, txData, txDataValid, txIFG_delay,
-           tx_ack, tx_underrun, txData2Engine,
-           gmiiRxClk, rxData, rxDataValid, rxGoodFrame,
-           rxBadFrame, rxData2Client, rxDataError):
+def client(client_interface, txd2engine,
+           rxd2client, rxder):
 
     """
     *Client Side Interface*

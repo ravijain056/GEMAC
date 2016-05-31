@@ -1,55 +1,33 @@
-from myhdl import block, Signal, intbv
+from myhdl import block, Signal, intbv, instances
 from gemac import client, txEngine, rxEngine, flowControl, gmii, mdio
 
+
 @block
-def gemac(
-        # Client Transmitter Interface
-        gtxClk, txData, txDataValid, txIFG_delay, tx_ack, tx_underrun,
-        # Client Receiver Interface
-        rxData, rxDataValid, rxGoodFrame, rxBadFrame,
-        # Flow Control Interface
-        pauseReq, pauseVal,
-        # Client Management Interface
-        hostClk, hostOpcode, hostAddr, hostWriteData, hostReadData,
-        hostMIIM_sel, hostReq, hostMIIM_rdy,
-        # Asynchronous reset signal
-        reset,
-        # GMII PHY Transmitter Interface
-        gmiiTxd, gmiiTxEn, gmiiTxEr,
-        # GMII PHY Receiver Interface
-        gmiiRxClk, gmiiRxd, gmiiRxDv, gmiiRxEr,
-        # MDIO PHY Interface
-        mdc, mdioIn, mdioOut, mdioTri):
+def gemac(client_interface, phy_interface, flow_interface,
+          management_interface, mdio_interface, reset):
 
-    transmitPauseFrame = Signal(bool(0))
-    rxDataError = Signal(bool(0))
-    txData2Engine = Signal(intbv(0)[8:])
-    txData2GMII = Signal(intbv(0)[8:])
-    rxData2Engine = Signal(intbv(0)[8:])
-    rxData2Client = Signal(intbv(0)[8:])
-    sampledPauseVal = Signal(intbv(0)[16:])
+    txpause = Signal(bool(0))  # Transmit Pause Framse
+    rxder = Signal(bool(0))  # Receive Data Error
+    txd2engine = Signal(intbv(0)[8:])
+    txd2gmii = Signal(intbv(0)[8:])
+    rxd2engine = Signal(intbv(0)[8:])
+    rxd2client = Signal(intbv(0)[8:])
+    sampled_pauseval = Signal(intbv(0)[16:])
 
-    clientInst = client(gtxClk, txData, txDataValid, txIFG_delay,
-                        tx_ack, tx_underrun, txData2Engine,
-                        gmiiRxClk, rxData, rxDataValid, rxGoodFrame,
-                        rxBadFrame, rxData2Client, rxDataError)
+    clientInst = client(client_interface, txd2engine,
+                        rxd2client, rxder)
 
-    txEngineInst = txEngine(gtxClk, txData2Engine, txData2GMII,
-                            transmitPauseFrame, sampledPauseVal)
+    txEngineInst = txEngine(client_interface.gtxclk, txd2engine, txd2gmii,
+                            txpause, sampled_pauseval)
 
-    rxEngineInst = rxEngine(gmiiRxClk, rxData2Client,
-                            rxData2Engine, rxDataError)
+    rxEngineInst = rxEngine(phy_interface.rxclk, rxd2client,
+                            rxd2engine, rxder)
 
-    flowControlInst = flowControl(pauseReq, pauseVal,
-                                  transmitPauseFrame, sampledPauseVal)
+    flowControlInst = flowControl(flow_interface, txpause, sampled_pauseval)
 
-    gmiiInst = gmii(txData2GMII, rxData2Engine,
-                    gtxClk, gmiiTxd, gmiiTxEn, gmiiTxEr,
-                    gmiiRxClk, gmiiRxd, gmiiRxDv, gmiiRxEr)
+    gmiiInst = gmii(phy_interface, txd2gmii, rxd2engine,
+                    client_interface.gtxclk)
 
-    mdioInst = mdio(hostClk, hostOpcode, hostAddr, hostWriteData, hostReadData,
-                    hostMIIM_sel, hostReq, hostMIIM_rdy,
-                    mdc, mdioIn, mdioOut, mdioTri)
+    mdioInst = mdio(management_interface, mdio_interface)
 
-
-    return clientInst, txEngineInst, rxEngineInst, gmiiInst, mdioInst, flowControlInst
+    return instances()

@@ -2,7 +2,7 @@ from myhdl import block, instances
 
 
 @block
-def flowControl(pauseReq, pauseVal, transmitPauseFrame, sampledPauseVal):
+def flowControl(flow_interface, transmitPauseFrame, sampledPauseVal):
 
     """
     *Flow Control*

@@ -2,9 +2,7 @@ from myhdl import block, Signal, intbv, instances
 
 
 @block
-def mdio(hostClk, hostOpcode, hostAddr, hostWriteData, hostReadData,
-         hostMIIM_sel, hostReq, hostMIIM_rdy,
-         mdc, mdioIn, mdioOut, mdioTri):
+def mdio(management_interface, mdio_interface):
 
     """
     Management Data - Input Output Interface.
@@ -25,15 +23,15 @@ def mdio(hostClk, hostOpcode, hostAddr, hostWriteData, hostReadData,
 
     """
     # Configuration Registers
-    ReceiverConfig_0 = Signal(intbv(0)[32:0])
-    ReceiverConfig_1 = Signal(intbv(0)[32:0])
-    TransmitterConfig = Signal(intbv(0)[32:0])
-    FlowControlConfig = Signal(intbv(0)[32:0])
-    ManagementConfig = Signal(intbv(0)[32:0])
-    UniCastAddress_0 = Signal(intbv(0)[32:0])
-    UniCastAddress_1 = Signal(intbv(0)[32:0])
-    AddressTableConfig_0 = Signal(intbv(0)[32:0])
-    AddressTableConfig_1 = Signal(intbv(0)[32:0])
-    AddressFilterMode = Signal(intbv(0)[32:0])
+    rxconfig0 = Signal(intbv(0)[32:0])
+    rxconfig1 = Signal(intbv(0)[32:0])
+    txconfig = Signal(intbv(0)[32:0])
+    flowconfig = Signal(intbv(0)[32:0])
+    managementconfig = Signal(intbv(0)[32:0])
+    ucast_addr0 = Signal(intbv(0)[32:0])
+    ucast_addr1 = Signal(intbv(0)[32:0])
+    addr_tableconfig0 = Signal(intbv(0)[32:0])
+    addr_tableconfig1 = Signal(intbv(0)[32:0])
+    addr_filtermode = Signal(intbv(0)[32:0])
 
     return instances()
