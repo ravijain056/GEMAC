@@ -1,5 +1,5 @@
 from myhdl import Signal
 
-class client:
+class clientInterface:
 
      def __init__(self):
