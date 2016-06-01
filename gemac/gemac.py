@@ -3,7 +3,7 @@ from gemac import client, txEngine, rxEngine, flowControl, gmii, mdio
 
 
 @block
-def gemac(client_interface, phy_interface, flow_interface,
+def gemac(txclient_interface, rxclient_interface, phy_interface, flow_interface,
           management_interface, mdio_interface, reset):
 
     txpause = Signal(bool(0))  # Transmit Pause Framse
@@ -14,10 +14,10 @@ def gemac(client_interface, phy_interface, flow_interface,
     rxd2client = Signal(intbv(0)[8:])
     sampled_pauseval = Signal(intbv(0)[16:])
 
-    clientInst = client(client_interface, txd2engine,
-                        rxd2client, rxder)
+    clientInst = client(txclient_interface, txd2engine,
+                        rxclient_interface, rxd2client, rxder)
 
-    txEngineInst = txEngine(client_interface.gtxclk, txd2engine, txd2gmii,
+    txEngineInst = txEngine(txclient_interface.gtxclk, txd2engine, txd2gmii,
                             txpause, sampled_pauseval)
 
     rxEngineInst = rxEngine(phy_interface.rxclk, rxd2client,
@@ -26,7 +26,7 @@ def gemac(client_interface, phy_interface, flow_interface,
     flowControlInst = flowControl(flow_interface, txpause, sampled_pauseval)
 
     gmiiInst = gmii(phy_interface, txd2gmii, rxd2engine,
-                    client_interface.gtxclk)
+                    txclient_interface.gtxclk)
 
     mdioInst = mdio(management_interface, mdio_interface)
 

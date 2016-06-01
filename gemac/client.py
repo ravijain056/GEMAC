@@ -2,8 +2,8 @@ from myhdl import block, instances
 
 
 @block
-def client(client_interface, txd2engine,
-           rxd2client, rxder):
+def client(txclient_interface, txd2engine,
+           rxclient_interface, rxd2client, rxder):
 
     """
     *Client Side Interface*
