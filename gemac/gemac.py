@@ -1,12 +1,17 @@
 from myhdl import block, Signal, intbv, instances
-from gemac import client, txEngine, rxEngine, flowControl, gmii, mdio
+from .client import client
+from .txEngine import txEngine
+from .rxEngine import rxEngine
+from .gmii import gmii
+from .flowControl import flowControl
+from .mdio import mdio
 
 
 @block
-def gemac(txclient_interface, rxclient_interface, phy_interface, flow_interface,
-          management_interface, mdio_interface, reset):
+def gemac(txclient_interface, rxclient_interface, phy_interface,
+          flow_interface, management_interface, mdio_interface, reset):
 
-    txpause = Signal(bool(0))  # Transmit Pause Framse
+    txpause = Signal(bool(0))  # Transmit Pause Frame
     rxder = Signal(bool(0))  # Receive Data Error
     txd2engine = Signal(intbv(0)[8:])
     txd2gmii = Signal(intbv(0)[8:])
