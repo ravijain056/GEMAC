@@ -5,8 +5,8 @@ class flowControlInterface:
 
     def __init__(self):
 
-        pausereq = Signal(bool(0))  # Pause Request
-        pauseval = Signal(intbv(0)[16:])  # Pause Value
+        self.pausereq = Signal(bool(0))  # Pause Request
+        self.pauseval = Signal(intbv(0)[16:])  # Pause Value
 
 
 class managementInterface():
@@ -14,14 +14,14 @@ class managementInterface():
     def __init__(self):
 
         # Client Management Interface
-        hostclk = Signal(bool(0))  # Host Clock
-        opcode = Signal(intbv(0)[2:])  # host Opcode
-        regaddress = Signal(intbv(0)[10:])  # Configuration Register Address
-        wrdata = Signal(intbv(0)[32:])  # Write Data
-        rddata = Signal(intbv(0)[32:])  # Read Data
-        miimsel = Signal(bool(0))  # MIIM select
-        hostreq = Signal(bool(0))  # host Request
-        miimrdy = Signal(bool(0))  # hostMIIM_ready
+        self.hostclk = Signal(bool(0))  # Host Clock
+        self.opcode = Signal(intbv(0)[2:])  # host Opcode
+        self.regaddress = Signal(intbv(0)[10:])  # Configuration Register Address
+        self.wrdata = Signal(intbv(0)[32:])  # Write Data
+        self.rddata = Signal(intbv(0)[32:])  # Read Data
+        self.miimsel = Signal(bool(0))  # MIIM select
+        self.hostreq = Signal(bool(0))  # host Request
+        self.miimrdy = Signal(bool(0))  # hostMIIM_ready
 
 
 class mdioInterface:
@@ -29,10 +29,10 @@ class mdioInterface:
     def __init__(self):
 
         # MDIO PHY Interface
-        mdc = Signal(bool(0))  # Management Clock derived from Host Clock
-        mdioIn = Signal(bool(0))
-        mdioOut = Signal(bool(0))
-        mdioTri = Signal(bool(0))
+        self.mdc = Signal(bool(0))  # Management Clock derived from Host Clock
+        self.mdioIn = Signal(bool(0))
+        self.mdioOut = Signal(bool(0))
+        self.mdioTri = Signal(bool(0))
 
 
 class phyInterface:
@@ -40,25 +40,25 @@ class phyInterface:
     def __init__(self):
 
         # GMII PHY Transmitter Interface
-        txd = Signal(intbv(0)[8:])  # Transmit Data
-        txen = Signal(bool(0))  # Transmit Enable
-        txer = Signal(bool(0))  # Transmit Error
+        self.txd = Signal(intbv(0)[8:])  # Transmit Data
+        self.txen = Signal(bool(0))  # Transmit Enable
+        self.txer = Signal(bool(0))  # Transmit Error
 
         # GMII PHY Receiver Interface
-        rxclk = Signal(bool(0))  # Receive Clock
-        rxd = Signal(intbv(0)[8:])  # Receive Data
-        rxdv = Signal(bool(0))  # Receive Data Valid
-        rxer = Signal(bool(0))  # Receive Error
+        self.rxclk = Signal(bool(0))  # Receive Clock
+        self.rxd = Signal(intbv(0)[8:])  # Receive Data
+        self.rxdv = Signal(bool(0))  # Receive Data Valid
+        self.rxer = Signal(bool(0))  # Receive Error
 
 
 class rxClientInterface:
 
     def __init__(self):
 
-        rxd = Signal(intbv(0)[8:])  # Receive Data
-        rxdv = Signal(bool(0))  # Receive Data Valid
-        rxgood = Signal(bool(0))  # Receive Good Frame
-        rxbad = Signal(bool(0))  # Receive Bad Frame
+        self.rxd = Signal(intbv(0)[8:])  # Receive Data
+        self.rxdv = Signal(bool(0))  # Receive Data Valid
+        self.rxgood = Signal(bool(0))  # Receive Good Frame
+        self.rxbad = Signal(bool(0))  # Receive Bad Frame
 
 
 class txClientInterface:
@@ -66,9 +66,9 @@ class txClientInterface:
     def __init__(self):
 
         # Client Transmitter Interface
-        gtxclk = Signal(bool(0))
-        txd = Signal(intbv(0)[8:])  # Transmit Data
-        txdv = Signal(bool(0))  # Transmit Data Valid
-        txifgdelay = Signal(intbv(0)[16:])  # Transmit InterFrameGap Delay
-        txack = Signal(bool(0))  # Transmit Acknowledge 
-        txunderrun = Signal(bool(0))  # Transmit Underrun
+        self.gtxclk = Signal(bool(0))
+        self.txd = Signal(intbv(0)[8:])  # Transmit Data
+        self.txdv = Signal(bool(0))  # Transmit Data Valid
+        self.txifgdelay = Signal(intbv(0)[16:])  # Transmit InterFrameGap Delay
+        self.txack = Signal(bool(0))  # Transmit Acknowledge 
+        self.txunderrun = Signal(bool(0))  # Transmit Underrun
