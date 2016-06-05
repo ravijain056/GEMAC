@@ -1,6 +1,7 @@
 from gemac.gemac import gemac
 from gemac.interfaces import phyInterface, flowControlInterface,\
-    managementInterface, txClientInterface, rxClientInterface, mdioInterface
+    managementInterface, txFIFOClientInterface, rxFIFOClientInterface,\
+    mdioInterface
 from myhdl import ResetSignal
 
 
@@ -8,8 +9,8 @@ class TestGemacCore:
 
     def setup_method(self, method):
 
-        txclient_interface = txClientInterface()
-        rxclient_interface = rxClientInterface()
+        txclient_interface = txFIFOClientInterface()
+        rxclient_interface = rxFIFOClientInterface()
         phy_interface = phyInterface()
         flow_interface = flowControlInterface()
         management_interface = managementInterface()
