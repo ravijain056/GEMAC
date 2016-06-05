@@ -3,6 +3,7 @@
 __pycache__
 .project
 .pydevproject
+<<<<<<< Upstream, based on branch 'dev1' of https://github.com/ravijain056/GEMAC.git
 *.vcd
 *.vcd.*
 *.v
@@ -15,3 +16,6 @@ __pycache__
 /.cache/
 /.settings/
 /gemac.egg-info/
+=======
+lastfailed
+>>>>>>> 3346c51 Updated Modular Base.

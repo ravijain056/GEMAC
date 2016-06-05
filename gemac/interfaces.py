@@ -26,7 +26,6 @@ class HostManagementInterface():
             new transaction.
 
     """
-
     def __init__(self):
         self.clk = Signal(bool(0))
         self.opcode = Signal(intbv(0)[2:])
