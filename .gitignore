@@ -5,3 +5,7 @@ __pycache__
 .project
 .pydevproject
 lastfailed
+/build/*
+/dist/*
+/gemac.egg-info/*
+.coverage

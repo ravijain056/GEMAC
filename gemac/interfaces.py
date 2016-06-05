@@ -1,4 +1,4 @@
-from myhdl import Signal, intbv, ResetSignal
+from myhdl import Signal, intbv, ResetSignal, TristateSignal
 
 
 class FlowControlInterface:
@@ -15,18 +15,16 @@ class HostManagementInterface():
         self.regaddress = Signal(intbv(0)[10:])  # Configuration Register Addr
         self.wrdata = Signal(intbv(0)[32:])  # Write Data
         self.rddata = Signal(intbv(0)[32:])  # Read Data
-        self.miimsel = Signal(bool(0))  # MIIM select
+        self.miimsel = Signal(bool(1))  # MIIM select
         self.hostreq = Signal(bool(0))  # host Request
-        self.miimrdy = Signal(bool(0))  # hostMIIM_ready
+        self.miimrdy = Signal(bool(1))  # hostMIIM_ready
 
 
 class MDIOInterface:
     def __init__(self):
         # MDIO PHY Interface
         self.mdc = Signal(bool(0))  # Management Clock derived from Host Clock
-        self.mdioIn = Signal(bool(0))
-        self.mdioOut = Signal(bool(0))
-        self.mdioTri = Signal(bool(0))
+        self.mdioio = TristateSignal(bool(0))  # Driven by mdio(in, out, tri)
 
 
 class PHYInterface:
