@@ -20,7 +20,5 @@ def txEngine(gtxclk, txd2engine, txd2gmii, txpause, sampled_pauseval):
     sampledPausesVal
 
     """
-    
-    
 
     return instances()

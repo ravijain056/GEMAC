@@ -1,16 +1,16 @@
 from myhdl import Signal, intbv, ResetSignal
 
 
-class flowControlInterface:
+class FlowControlInterface:
     def __init__(self):
         self.pausereq = Signal(bool(0))  # Pause Request
         self.pauseval = Signal(intbv(0)[16:])  # Pause Value
 
 
-class managementInterface():
+class HostManagementInterface():
     def __init__(self):
         # Client Management Interface
-        self.hostclk = Signal(bool(0))  # Host Clock
+        self.clk = Signal(bool(0))  # Host Clock
         self.opcode = Signal(intbv(0)[2:])  # host Opcode
         self.regaddress = Signal(intbv(0)[10:])  # Configuration Register Addr
         self.wrdata = Signal(intbv(0)[32:])  # Write Data
@@ -20,7 +20,7 @@ class managementInterface():
         self.miimrdy = Signal(bool(0))  # hostMIIM_ready
 
 
-class mdioInterface:
+class MDIOInterface:
     def __init__(self):
         # MDIO PHY Interface
         self.mdc = Signal(bool(0))  # Management Clock derived from Host Clock
@@ -29,7 +29,7 @@ class mdioInterface:
         self.mdioTri = Signal(bool(0))
 
 
-class phyInterface:
+class PHYInterface:
     def __init__(self):
         # GMII PHY Transmitter Interface
         self.txd = Signal(intbv(0)[8:])  # Transmit Data
@@ -42,7 +42,7 @@ class phyInterface:
         self.rxer = Signal(bool(0))  # Receive Error
 
 
-class rxFIFOClientInterface:
+class RxFIFOClientInterface:
     def __init__(self):
         self.rxclk = Signal(bool(0))
         self.reset = ResetSignal(0, active=0, async=False)
@@ -54,7 +54,7 @@ class rxFIFOClientInterface:
         self.overflow = Signal(bool(0))
 
 
-class rxLocalLinkFIFOInterface:
+class RxLocalLinkFIFOInterface:
     def __init__(self):
         self.rxclk = Signal(bool(0))
         self.reset = ResetSignal(0, active=0, async=False)
@@ -66,7 +66,7 @@ class rxLocalLinkFIFOInterface:
         self.fifostatus = Signal(bool(0))
 
 
-class txFIFOClientInterface:
+class TxFIFOClientInterface:
     def __init__(self):
         # Client Transmitter Interface
         self.gtxclk = Signal(bool(0))
@@ -79,7 +79,7 @@ class txFIFOClientInterface:
         self.txretransmit = Signal(bool(0))
 
 
-class txLocalLinkFIFOInterface:
+class TxLocalLinkFIFOInterface:
     def __init__(self):
         self.txclk = Signal(bool(0))
         self.reset = ResetSignal(0, active=0, async=False)
