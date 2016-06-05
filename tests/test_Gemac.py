@@ -3,6 +3,7 @@ from gemac.interfaces import phyInterface, flowControlInterface,\
     managementInterface, txClientInterface, rxClientInterface, mdioInterface
 from myhdl import ResetSignal
 
+
 class TestGemacCore:
 
     def setup_method(self, method):

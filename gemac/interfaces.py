@@ -16,7 +16,7 @@ class managementInterface():
         # Client Management Interface
         self.hostclk = Signal(bool(0))  # Host Clock
         self.opcode = Signal(intbv(0)[2:])  # host Opcode
-        self.regaddress = Signal(intbv(0)[10:])  # Configuration Register Address
+        self.regaddress = Signal(intbv(0)[10:])  # Configuration Register Addr
         self.wrdata = Signal(intbv(0)[32:])  # Write Data
         self.rddata = Signal(intbv(0)[32:])  # Read Data
         self.miimsel = Signal(bool(0))  # MIIM select
@@ -70,5 +70,5 @@ class txClientInterface:
         self.txd = Signal(intbv(0)[8:])  # Transmit Data
         self.txdv = Signal(bool(0))  # Transmit Data Valid
         self.txifgdelay = Signal(intbv(0)[16:])  # Transmit InterFrameGap Delay
-        self.txack = Signal(bool(0))  # Transmit Acknowledge 
+        self.txack = Signal(bool(0))  # Transmit Acknowledge
         self.txunderrun = Signal(bool(0))  # Transmit Underrun
