@@ -44,10 +44,26 @@ class phyInterface:
 
 class rxFIFOClientInterface:
     def __init__(self):
+        self.rxclk = Signal(bool(0))
+        self.reset = ResetSignal(0, active=0, async=False)
+        self.clkenable = Signal(bool(0))
         self.rxd = Signal(intbv(0)[8:])  # Receive Data
         self.rxdv = Signal(bool(0))  # Receive Data Valid
         self.rxgood = Signal(bool(0))  # Receive Good Frame
         self.rxbad = Signal(bool(0))  # Receive Bad Frame
+        self.overflow = Signal(bool(0))
+
+
+class rxLocalLinkFIFOInterface:
+    def __init__(self):
+        self.rxclk = Signal(bool(0))
+        self.reset = ResetSignal(0, active=0, async=False)
+        self.rxd = Signal(intbv(0)[8:])
+        self.sof = Signal(bool(0))
+        self.eof = Signal(bool(0))
+        self.src_rdy = Signal(bool(0))  # Source Ready
+        self.dst_rdy = Signal(bool(0))  # Destination Ready
+        self.fifostatus = Signal(bool(0))
 
 
 class txFIFOClientInterface:
@@ -74,4 +90,3 @@ class txLocalLinkFIFOInterface:
         self.dst_rdy = Signal(bool(0))  # Destination Ready
         self.fifostatus = Signal(intbv(0)[4:])
         self.overflow = Signal(bool(0))
-
