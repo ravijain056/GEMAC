@@ -100,7 +100,7 @@ def management(host_interface, mdio_interface):
         clkDiv = (configregisters[managementreg][5:] + 1)  # * 2
         hostclk_count += 1
         if hostclk_count == clkDiv:
-            host_interface.mdc.next = not host_interface.mdc
+            mdio_interface.mdc.next = not mdio_interface.mdc
             hostclk_count = 0
 
     # May req to recheck trigerring signal according to Page 87, Xilinx UG144
