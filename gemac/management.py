@@ -111,7 +111,7 @@ def management(host_interface, mdio_interface):
             mdiodata = mdioData(host_interface.opcode,
                                 host_interface.regaddress,
                                 host_interface.wrdata)
-            yield host_interface.clk.posedge
+            # yield host_interface.clk.posedge
             if host_interface.opcode[1]:  # Read Operation
                 host_interface.rddata.next = mdioread(mdiodata)
             elif not host_interface.opcode[1]:  # Write Operation
@@ -119,6 +119,7 @@ def management(host_interface, mdio_interface):
             host_interface.miimrdy.next = 1
 
     def mdiostream(datalist):
+        yield host_interface.clk.posedge
         mdiotri.next = 1
         yield mdio_interface.mdc.posedge
         for data in datalist:
