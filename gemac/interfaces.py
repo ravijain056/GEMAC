@@ -19,6 +19,20 @@ class HostManagementInterface():
         self.hostreq = Signal(bool(0))  # host Request
         self.miimrdy = Signal(bool(1))  # hostMIIM_ready
 
+    def idle(self):
+        self.miimsel.next = 1
+
+    def writeconfig(self, addr, data):
+        self.miimsel.next = 0
+        self.opcode.next = 0
+        self.regaddress.next = intbv(addr)[10:]
+        self.wrdata.next = intbv(data)[32:]
+
+    def readconfig(self, addr):
+        self.miimsel.next = 0
+        self.opcode.next = 0b10
+        self.regaddress.next = intbv(addr)[10:]
+
 
 class MDIOInterface:
     def __init__(self):

@@ -1,4 +1,5 @@
-from myhdl import block, Signal, intbv, always_seq, always_comb
+from myhdl import block, Signal, intbv, always_seq, always_comb, now
+from myhdl._ShadowSignal import TristateSignal
 
 
 rx0, rx1, tx, flow, managementreg, ucast0, \
@@ -45,12 +46,14 @@ def management(host_interface, mdio_interface):
     """
 
     mdioout = Signal(bool(0))
-    mdioin = Signal(bool(0))
+    # mdioin = Signal(bool(0))
+    mdioin = TristateSignal(bool(0))
+    mdioindriver = mdioin.driver()
     mdiotri = Signal(bool(0))
     mdio_interface.mdiodriver = mdio_interface.mdioio.driver()
-    
-    configregisters = [Signal(intbv(0))[32:0] for _ in range(10)]
 
+    configregisters = [Signal(intbv(0))[32:0] for _ in range(10)]
+    
     def getregisternumber(addr):
         if addr >= 0x200 and addr <= 0x23F:
             return rx0
@@ -61,7 +64,7 @@ def management(host_interface, mdio_interface):
         elif addr >= 0x2C0 and addr <= 0x2FF:
             return flow
         elif addr >= 0x340 and addr <= 0x37F:
-            return management
+            return managementreg
         elif addr >= 0x380 and addr <= 0x383:
             return ucast0
         elif addr >= 0x384 and addr <= 0x387:
@@ -78,23 +81,27 @@ def management(host_interface, mdio_interface):
     @always_seq(host_interface.clk.posedge, reset=None)
     def readConfig():
         if((not host_interface.miimsel) and host_interface.regaddress[9] and
-                host_interface.opcode):
+                host_interface.opcode[1]):
             host_interface.rddata.next = \
                 configregisters[getregisternumber(host_interface.regaddress)]
 
     @always_seq(host_interface.clk.posedge, reset=None)
     def writeConfig():
         if((not host_interface.miimsel) and host_interface.regaddress[9] and
-                (not host_interface.opcode)):
+                (not host_interface.opcode[1])):
+            print("Yes i am Writing! %s" % now())
             configregisters[getregisternumber(host_interface.regaddress)]\
                 .next = host_interface.wrdata
+            print("Writing: %s" % host_interface.wrdata)
+            print("Written: %s" % configregisters[getregisternumber(host_interface.regaddress)])
 
     # @TODO: Address Table Read.
 
     @always_comb
     def mdiodriver():
         mdio_interface.mdiodriver.next = mdioout if mdiotri else None
-        mdioin.next = mdio_interface.mdioio
+        mdioindriver.next = mdio_interface.mdioio if not mdiotri else None
+        # mdioin.next = False if mdio_interface.mdioio is None else mdio_interface.mdioio
 
     @always_seq(host_interface.clk.posedge, reset=None)
     def mdcdriver():
