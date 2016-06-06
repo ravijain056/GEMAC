@@ -1,9 +1,9 @@
 from gemac.interfaces import HostManagementInterface, MDIOInterface
 from gemac.management import management
-from myhdl import instance, delay, now, block
+from myhdl import instance, delay, block, intbv
 
 
-def test_writeconfig():
+def test_readwriteconfig():
 
     @block
     def writeconfig_operation():
@@ -11,20 +11,15 @@ def test_writeconfig():
         hostmanagement_interface = HostManagementInterface()
         mdio_interface = MDIOInterface()
         managementInst = management(hostmanagement_interface, mdio_interface)
-        print("Testing %s" % managementInst)
+        print("Testing Read/Write Configuration Register%s" % managementInst)
 
         @instance
         def write():
             yield clkWait(count=10)
             yield hostmanagement_interface.writeconfig(0x340, 0x12345678)
-            yield clkWait(count=2)
-            yield hostmanagement_interface.idle()
             yield clkWait(count=4)
             yield hostmanagement_interface.readconfig(0x340)
-            yield clkWait(count=2)
-            print("%s Read Data: %s" %
-                  (now(), hostmanagement_interface.rddata))
-            assert hostmanagement_interface.rddata == 0x12345678
+            assert hostmanagement_interface.rddata[32:] == intbv(0x12345678)
 
         @instance
         def hostclkdriver():
