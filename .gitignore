@@ -3,7 +3,6 @@
 __pycache__
 .project
 .pydevproject
-*.vcd.*
 *.v
 *.vhd
 *.log
