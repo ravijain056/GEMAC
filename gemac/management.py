@@ -3,6 +3,7 @@ from myhdl import block, Signal, intbv, always_seq, always_comb
 
 rx0, rx1, tx, flow, managementreg, ucast0, \
     ucast1, addrtable0, addrtable1, addrfiltermode = range(10)
+hostclk_count = 0
 
 
 class mdioData:
@@ -47,7 +48,7 @@ def management(host_interface, mdio_interface):
     mdioin = Signal(bool(0))
     mdiotri = Signal(bool(0))
     mdio_interface.mdiodriver = mdio_interface.mdioio.driver()
-    hostclk_count = 0
+    
     configregisters = [Signal(intbv(0))[32:0] for _ in range(10)]
 
     def getregisternumber(addr):
@@ -97,6 +98,7 @@ def management(host_interface, mdio_interface):
 
     @always_seq(host_interface.clk.posedge, reset=None)
     def mdcdriver():
+        global hostclk_count
         clkDiv = (configregisters[managementreg][5:] + 1)  # * 2
         hostclk_count += 1
         if hostclk_count == clkDiv:
