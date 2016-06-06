@@ -1,4 +1,4 @@
-from myhdl import block, Signal, intbv, always_seq, always_comb, now
+from myhdl import block, Signal, intbv, always_seq, always_comb
 from myhdl._ShadowSignal import TristateSignal
 
 
@@ -52,8 +52,8 @@ def management(host_interface, mdio_interface):
     mdiotri = Signal(bool(0))
     mdio_interface.mdiodriver = mdio_interface.mdioio.driver()
 
-    configregisters = [Signal(intbv(0))[32:0] for _ in range(10)]
-    
+    configregisters = [Signal(intbv(0)[32:0]) for _ in range(10)]
+
     def getregisternumber(addr):
         if addr >= 0x200 and addr <= 0x23F:
             return rx0
@@ -89,11 +89,8 @@ def management(host_interface, mdio_interface):
     def writeConfig():
         if((not host_interface.miimsel) and host_interface.regaddress[9] and
                 (not host_interface.opcode[1])):
-            print("Yes i am Writing! %s" % now())
             configregisters[getregisternumber(host_interface.regaddress)]\
                 .next = host_interface.wrdata
-            print("Writing: %s" % host_interface.wrdata)
-            print("Written: %s" % configregisters[getregisternumber(host_interface.regaddress)])
 
     # @TODO: Address Table Read.
 
