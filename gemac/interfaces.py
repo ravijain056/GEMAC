@@ -19,12 +19,64 @@ class HostManagementInterface():
         self.hostreq = Signal(bool(0))  # host Request
         self.miimrdy = Signal(bool(1))  # hostMIIM_ready
 
+    def writeconfig(self, addr, data):
+        self.miimsel.next = 0
+        self.opcode.next = 0
+        self.regaddress.next = intbv(addr)[10:]
+        self.wrdata.next = intbv(data)[32:]
+        yield self.clk.posedge
+        self.miimsel.next = 1
+        self.regaddress.next = 0
+        self.wrdata.next = 0
+
+    def readconfig(self, addr):
+        self.miimsel.next = 0
+        self.opcode.next = 0b10
+        self.regaddress.next = intbv(addr)[10:]
+        yield self.clk.posedge
+        self.miimsel.next = 1
+        self.opcode.next = 0
+        self.regaddress.next = 0
+        yield self.clk.posedge
+
+    def mdiowriteop(self, opcode, regaddress, data, block=True):
+        if not self.miimrdy:
+            yield self.miimrdy.posedge
+        self.miimsel.next = 1
+        self.hostreq.next = 1
+        self.opcode.next = opcode[2:]
+        self.regaddress.next = regaddress[10:]
+        self.wrdata.next = data[16:]
+        yield self.clk.posedge
+        self.hostreq.next = 0
+        self.opcode.next = 0
+        self.regaddress.next = 0
+        self.wrdata.next = 0
+        if block:
+            yield self.miimrdy.posedge
+
+    def mdioreadop(self, opcode, regaddress, block=True):
+        if not self.miimrdy:
+            yield self.miimrdy.posedge
+        self.miimsel.next = 1
+        self.hostreq.next = 1
+        self.opcode.next = opcode[2:]
+        self.regaddress.next = regaddress[10:]
+        yield self.clk.posedge
+        self.hostreq.next = 0
+        self.opcode.next = 0
+        self.regaddress.next = 0
+        if block:
+            yield self.miimrdy.posedge
+
 
 class MDIOInterface:
     def __init__(self):
         # MDIO PHY Interface
         self.mdc = Signal(bool(0))  # Management Clock derived from Host Clock
-        self.mdioio = TristateSignal(bool(0))  # Driven by mdio(in, out, tri)
+        self.tri = Signal(bool(0))
+        self.inn = Signal(bool(0))
+        self.out = Signal(bool(0))
 
 
 class PHYInterface:
