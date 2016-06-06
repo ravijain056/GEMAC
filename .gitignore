@@ -9,3 +9,5 @@ lastfailed
 /dist/*
 /gemac.egg-info/*
 .coverage
+*.vcd
+*.vcd.*
