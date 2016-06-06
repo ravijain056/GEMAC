@@ -59,18 +59,20 @@ def management(host_interface, mdio_interface):
         else:
             raise Exception
 
-    @always_seq(host_interface.clk.posedge)
+    @always_seq(host_interface.clk.posedge, reset=None)
     def readConfig():
         if((not host_interface.miimsel) and host_interface.regaddress[9] and
                 host_interface.opcode):
             host_interface.rddata.next = \
                 configregisters[getregisternumber(host_interface.regaddress)]
 
-    @always_seq(host_interface.clk.posedge)
+    @always_seq(host_interface.clk.posedge, reset=None)
     def writeConfig():
         if((not host_interface.miimsel) and host_interface.regaddress[9] and
                 (not host_interface.opcode)):
             configregisters[getregisternumber(host_interface.regaddress)]\
                 .next = host_interface.wrdata
+
+    # @TODO: Address Table Read.
 
     return readConfig, writeConfig
