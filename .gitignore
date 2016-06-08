@@ -11,3 +11,4 @@ lastfailed
 .coverage
 *.vcd
 *.vcd.*
+*.v
