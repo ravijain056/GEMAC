@@ -108,17 +108,24 @@ def test_mdiooperation():
         @instance
         def testlogic():
             yield clkwait(count=10)
-            yield hostmanagement_interface.writeconfig(0x340, 0x00000002)
+            yield hostmanagement_interface.writeconfig(0x340, 0x00000022)
             yield mdio_interface.mdc.posedge
             yield hostmanagement_interface.\
                 mdiowriteop(intbv(0b01), intbv(0b1001010100),
-                            intbv(0xA578), block=False)
-            yield clkwait(count=200)
+                            intbv(0xA578), block=True)
             assert True
 
         return testlogic, hostclkdriver, managementInst
 
     testInst = test()
     testInst.config_sim(trace=False)
-    testInst.run_sim(duration=5000)
+    testInst.run_sim(duration=10000)
     testInst.quit_sim()
+
+
+def test_convertible():
+
+    hostmanagement_interface = HostManagementInterface()
+    mdio_interface = MDIOInterface()
+    managementInst = management(hostmanagement_interface, mdio_interface)
+    managementInst.convert(hdl='Verilog')

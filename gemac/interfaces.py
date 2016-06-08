@@ -69,9 +69,9 @@ class MDIOInterface:
     def __init__(self):
         # MDIO PHY Interface
         self.mdc = Signal(bool(0))  # Management Clock derived from Host Clock
-        self.tri = TristateSignal(None)
-        self.inn = TristateSignal(None)
-        self.out = TristateSignal(None)
+        self.tri = Signal(bool(0))
+        self.inn = Signal(bool(0))
+        self.out = Signal(bool(0))
 
 
 class PHYInterface:

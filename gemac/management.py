@@ -1,8 +1,11 @@
-from myhdl import block, Signal, intbv, always_seq, instance
+from myhdl import block, Signal, intbv, always_seq
 
 
 rx0, rx1, tx, flow, managementreg, ucast0, \
     ucast1, addrtable0, addrtable1, addrfiltermode, reserved = range(11)
+
+# pre, st, op, phyaddr, regaddr, ta, wrdata, rddata, hostclk_count, \
+#    rdindex, wrindex = range(11)
 
 
 class mdioData:
@@ -16,16 +19,12 @@ class mdioData:
         self.wrdata = Signal(intbv(0)[16:])
         self.rddata = Signal(intbv(0)[16:])
         self.hostclk_count = Signal(intbv(0)[5:])  # Used to drive mdc
-        self.rdindex = Signal(intbv(16, min=0, max=17))  # in index during rdop
-        self.wrindex = Signal(intbv(0, min=0, max=65))
-
-    def storedata(self, opcode, hostaddr, wrdata):
-        self.op.next = opcode[2:]
-        self.phyaddr.next = hostaddr[10:5]
-        self.regaddr.next = hostaddr[5:]
-        self.wrdata.next = wrdata[16:]
+        self.rdindex = Signal(intbv(17, min=0, max=18))  # in index during rdop
+        self.wrindex = Signal(intbv(0, min=0, max=66))
 
     def mdioread(self, mdioin):
+        if self.rdindex == 17:
+            self.rdindex.next = 16
         if self.rdindex == 16 and mdioin is False:
             self.rdindex.next = 15
         else:
@@ -33,7 +32,7 @@ class mdioData:
             self.rdindex.next = self.rdindex - 1
             if self.rdindex == 0:
                 self.rddata.next = 0
-                self.rdindex.next = 16
+                self.rdindex.next = 17
                 return True
         return False
 
@@ -44,7 +43,7 @@ class mdioData:
         elif self.wrindex <= 33:
             return self.st[self.wrindex-32]
         elif self.wrindex <= 35:
-            return self.op[self.wrinex-34]
+            return self.op[self.wrindex-34]
         elif self.wrindex <= 40:
             return self.phyaddr[self.wrindex-36]
         elif self.wrindex <= 45:
@@ -57,46 +56,51 @@ class mdioData:
             self.wrindex.next = 0
             return None
 
+"""
+Management Data - Input Output Interface.
 
-class mdioDrivers:
-    def __init__(self, mdio_interface):
-        self.tri = mdio_interface.tri.driver()
-        self.inn = mdio_interface.inn.driver()
-        self.out = mdio_interface.out.driver()
+hostClk - Reference Clk for Management/Configuration Operations. >10MHz
+hostOpcode (2 Bits) - Define Operation for MDIO Interface. Bit 1 also
+    used as control signal for configuration data transfer.
+hostAddr (10 Bits) - Address of Register to be accessed. According to
+    Table 8.2, Page 27, Xilinx UG 144 doc.
+hostWriteData (32 bits) - Data write.
+hostReadData (32 bits) - Data read.
+hostMIIM_sel - Set by Host. When High MDIO interface Accessed,
+    Else Configuration registers.
+hostReq - Set by Host to Indicate ongoing MDIO transaction.
+hostMIIM_rdy - Set by MDIO Interface to indicate ready for new transaction.
+
+mdc - Management Clock: programmable frequency derived from host_clk.
+mdioIn - Input data signal from PHY for its configuration and
+    status.(TriStateBuffer Connected)
+mdioOut - Output data signal from PHY for its configuration and
+    status.(TriStateBuffer Connected)
+mdioTri - TriState Control for Signals - Low Indicating mdioOut to be
+    asserted to the MDIO bus.
+
+"""
 
 
 @block
 def management(host_interface, mdio_interface):
 
-    """
-    Management Data - Input Output Interface.
-
-    hostClk - Reference Clk for Management/Configuration Operations. >10MHz
-    hostOpcode (2 Bits) - Define Operation for MDIO Interface. Bit 1 also
-        used as control signal for configuration data transfer.
-    hostAddr (10 Bits) - Address of Register to be accessed. According to
-        Table 8.2, Page 27, Xilinx UG 144 doc.
-    hostWriteData (32 bits) - Data write.
-    hostReadData (32 bits) - Data read.
-    hostMIIM_sel - Set by Host. When High MDIO interface Accessed,
-        Else Configuration registers.
-    hostReq - Set by Host to Indicate ongoing MDIO transaction.
-    hostMIIM_rdy - Set by MDIO Interface to indicate ready for new transaction.
-
-    mdc - Management Clock: programmable frequency derived from host_clk.
-    mdioIn - Input data signal from PHY for its configuration and
-        status.(TriStateBuffer Connected)
-    mdioOut - Output data signal from PHY for its configuration and
-        status.(TriStateBuffer Connected)
-    mdioTri - TriState Control for Signals - Low Indicating mdioOut to be
-        asserted to the MDIO bus.
-
-    """
-
-    mdiodata = mdioData()
-    mdiodrivers = mdioDrivers(mdio_interface)
     configregisters = [Signal(intbv(0)[32:0]) for _ in range(10)]
-
+    """
+    mdiodata = [Signal(intbv(0xFFFFFFFF)[32:]),  # pre
+                Signal(intbv(0b01)[2:]),         # st
+                Signal(intbv(0)[2:]),            # op
+                Signal(intbv(0)[5:]),            # phyaddr
+                Signal(intbv(0)[5:]),            #
+                Signal(intbv(0b10)[2:]),
+                Signal(intbv(0)[16:]),
+                Signal(intbv(0)[16:]),
+                Signal(intbv(0)[16:]),
+                Signal(intbv(0)[5:]),
+                Signal(intbv(17, min=0, max=18)),
+                Signal(intbv(0, min=0, max=66))]
+    """
+    mdiodata = mdioData()
     def getregisternumber(addr):
         if addr >= 0x200 and addr <= 0x23F:
             return rx0
@@ -120,6 +124,12 @@ def management(host_interface, mdio_interface):
             return addrfiltermode
         else:
             return reserved
+
+    def storedata(opcode, hostaddr, wrdata):
+        mdiodata.op.next = opcode[2:]
+        mdiodata.phyaddr.next = hostaddr[10:5]
+        mdiodata.regaddr.next = hostaddr[5:]
+        mdiodata.wrdata.next = wrdata[16:]
 
     @always_seq(host_interface.clk.posedge, reset=None)
     def readConfig():
@@ -154,29 +164,26 @@ def management(host_interface, mdio_interface):
         if host_interface.hostreq and host_interface.miimsel and \
                 host_interface.miimrdy:
             host_interface.miimrdy.next = False
-            mdiodrivers.tri.next = Signal(bool(1))
-            mdiodata.storedata(host_interface.opcode,
-                               host_interface.regaddress,
-                               host_interface.wrdata)
+            mdio_interface.tri.next = False
+            storedata(host_interface.opcode, host_interface.regaddress,
+                      host_interface.wrdata)
 
     @always_seq(mdio_interface.mdc.posedge, reset=None)
     def mdiooperation():
         mdioenable = configregisters[managementreg][5]
         if (not host_interface.miimrdy) and mdioenable:
-            if mdio_interface.tri is True:
-                mdiodrivers.out.next = mdiodata.next()
+            if not mdio_interface.tri:
                 if mdiodata.next() is None:
                     if mdiodata.op[1]:  # Read Operation
-                        mdiodrivers.tri.next = None
+                        mdio_interface.tri.next = True
                     elif not mdiodata.op[1]:  # Write Operation
-                        mdiodrivers.tri.next = None
+                        mdio_interface.tri.next = True
                         host_interface.miimrdy.next = True
-            elif mdio_interface.tri is False:  # Only in case of read operation
+                else:
+                    mdio_interface.out.next = mdiodata.next()
+            elif mdio_interface.tri:  # Only in case of read operation
                 if mdiodata.mdioread(mdio_interface.inn):
                     host_interface.miimrdy.next = True
                     host_interface.rddata.next = mdiodata.rddata[16:]
-                    mdiodrivers.tri.next = None
-            elif mdio_interface.tri is None:
-                mdiodrivers.tri.next = False  # provides 2 TA bits during rdop
 
     return readConfig, writeConfig, mdcdriver, mdioinitiate, mdiooperation
