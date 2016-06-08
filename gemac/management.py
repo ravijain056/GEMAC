@@ -1,11 +1,10 @@
-from myhdl import block, Signal, intbv, always_seq, ConcatSignal
+from myhdl import block, Signal, intbv, always_seq, concat
 
 
 rx0, rx1, tx, flow, managementreg, ucast0, \
     ucast1, addrtable0, addrtable1, addrfiltermode, reserved = range(11)
-pre = intbv(0b01)[2:]
-st = intbv(0)[2:]
-ta = intbv(0b10)[2:]
+# st = intbv(0b01)[2:]
+# ta = intbv(0b10)[2:]
 
 
 class mdioData:
@@ -15,6 +14,8 @@ class mdioData:
         self.rddata = Signal(intbv(0)[16:])
         self.rdindex = Signal(intbv(17, min=0, max=18))  # in index during rdop
         self.wrindex = Signal(intbv(0, min=0, max=66))
+        self.wrdone = Signal(bool(0))
+        self.done = Signal(bool(0))
 
 """
 Management Data - Input Output Interface.
@@ -80,6 +81,8 @@ def management(host_interface, mdio_interface):
             regindex = getregisternumber(host_interface.regaddress)
             if regindex != reserved:
                 host_interface.rddata.next = configregisters[regindex]
+        if not host_interface.miimrdy and mdiodata.done:
+            host_interface.rddata.next = mdiodata.rddata[16:]
 
     @always_seq(host_interface.clk.posedge, reset=None)
     def writeConfig():
@@ -106,24 +109,26 @@ def management(host_interface, mdio_interface):
                 host_interface.miimrdy:
             host_interface.miimrdy.next = False
             mdio_interface.tri.next = False
-            mdiodata.wrdata.next = \
-                ConcatSignal(pre, st, host_interface.opcode[2:],
-                             host_interface.regaddress[10:],
-                             host_interface.wrdata[16:])[32:]
+            mdiodata.wrdata.next = concat(intbv(0b01)[2:], host_interface.opcode[2:],
+                                          host_interface.regaddress[10:], intbv(0b10)[2:],
+                                          host_interface.wrdata[16:])[32:]
+        if not host_interface.miimrdy:
+            if mdiodata.wrdone:
+                mdio_interface.tri.next = True
+            if mdiodata.done:
+                host_interface.miimrdy.next = True
 
-    @always_seq(host_interface.clk.posedge, reset=None)
+    @always_seq(mdio_interface.mdc.posedge, reset=None)
     def mdiooperation():
-        clkDiv = configregisters[managementreg][5:]  # + 1 * 2
         mdioenable = configregisters[managementreg][5]
-        if (not host_interface.miimrdy) and mdioenable and \
-                mdiodata.hostclk_count == clkDiv:
+        if (not host_interface.miimrdy) and mdioenable:
             if not mdio_interface.tri:
                 if mdiodata.wrindex == 64 or \
-                        (mdiodata.wrindex == 46 and mdiodata.wrdata[27]):
-                    mdio_interface.tri.next = True
+                        (mdiodata.wrindex == 46 and mdiodata.wrdata[29]):
+                    mdiodata.wrdone.next = True
                     mdiodata.wrindex.next = 0
-                    if not mdiodata.wrdata[27]:  # Write Operation Exit
-                        host_interface.miimrdy.next = True
+                    if not mdiodata.wrdata[29]:  # Write Operation Exit
+                        mdiodata.done.next = True
                 else:
                     mdio_interface.out.next = 1 if mdiodata.wrindex <= 31 \
                         else mdiodata.wrdata[mdiodata.wrindex-32]
@@ -131,6 +136,7 @@ def management(host_interface, mdio_interface):
             else:  # Only in case of read operation
                 if mdiodata.rdindex == 17:
                     mdiodata.rdindex.next = 16
+                    mdiodata.rddata.next = 0
                 elif mdiodata.rdindex == 16:  # mdio_interface.inn should be 0
                     mdiodata.rdindex.next = 15
                 else:
@@ -138,9 +144,10 @@ def management(host_interface, mdio_interface):
                         (mdio_interface.inn << mdiodata.rdindex)
                     mdiodata.rdindex.next = mdiodata.rdindex - 1
                     if mdiodata.rdindex == 0:
-                        mdiodata.rddata.next = 0
                         mdiodata.rdindex.next = 17
-                        host_interface.miimrdy.next = True
-                        host_interface.rddata.next = mdiodata.rddata[16:]
+                        mdiodata.done.next = True
+        else:
+            mdiodata.wrdone.next = False
+            mdiodata.done.next = False
 
     return readConfig, writeConfig, mdcdriver, mdioinitiate, mdiooperation
