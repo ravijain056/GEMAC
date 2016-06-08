@@ -12,3 +12,4 @@ lastfailed
 *.vcd
 *.vcd.*
 *.v
+*.vhd
