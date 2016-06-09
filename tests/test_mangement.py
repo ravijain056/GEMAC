@@ -1,6 +1,6 @@
 from gemac.interfaces import HostManagementInterface, MDIOInterface
 from gemac.management import management
-from myhdl import instance, delay, block, intbv, now
+from myhdl import instance, delay, block, intbv, now, Signal
 
 
 def test_readwriteconfig():
@@ -84,10 +84,11 @@ def test_mdioclkgen():
     testInst.quit_sim()
 
 
-def test_mdiooperation():
+def test_mdiowrite():
 
     @block
     def test():
+
         hostmanagement_interface = HostManagementInterface()
         mdio_interface = MDIOInterface()
         managementInst = management(hostmanagement_interface, mdio_interface)
@@ -107,19 +108,26 @@ def test_mdiooperation():
 
         @instance
         def testlogic():
-            yield clkwait(count=10)
+            yield clkwait(count=10)  # mdio enable, clkdiv =2+1*2=6
             yield hostmanagement_interface.writeconfig(0x340, 0x00000022)
             yield mdio_interface.mdc.posedge
             yield hostmanagement_interface.\
-                mdiowriteop(intbv(0b01), intbv(0b1001010100),
-                            intbv(0xA578), block=True)
-            assert True
+                mdiowriteop(intbv(0b01), intbv(0b1001100000),
+                            intbv(0xABCD), block=False)
+            yield mdio_interface.out.negedge
+            wrindex = 32
+            wrdata = intbv(0)[32:]
+            while wrindex >= 0:
+                wrdata[wrindex] = mdio_interface.out
+                wrindex -= 1
+                yield mdio_interface.mdc.posedge
+            assert wrdata[32:] == 0x5982ABCD
 
         return testlogic, hostclkdriver, managementInst
 
     testInst = test()
-    testInst.config_sim(trace=False)
-    testInst.run_sim(duration=10000)
+    testInst.config_sim(trace=True)
+    testInst.run_sim(duration=6000)
     testInst.quit_sim()
 
 
@@ -128,4 +136,6 @@ def test_convertible():
     hostmanagement_interface = HostManagementInterface()
     mdio_interface = MDIOInterface()
     managementInst = management(hostmanagement_interface, mdio_interface)
+    print("Testing Convertibility %s" % managementInst)
     managementInst.convert(hdl='Verilog')
+    managementInst.convert(hdl='VHDL')

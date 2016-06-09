@@ -1,4 +1,6 @@
 from myhdl import block, Signal, intbv, always_seq, concat
+from myhdl._simulator import now
+from gemac.interfaces import MDIOInterface
 
 
 rx0, rx1, tx, flow, managementreg, ucast0, \
@@ -13,7 +15,7 @@ class mdioData:
         self.wrdata = Signal(intbv(0)[32:])
         self.rddata = Signal(intbv(0)[16:])
         self.rdindex = Signal(intbv(17, min=0, max=18))  # in index during rdop
-        self.wrindex = Signal(intbv(0, min=0, max=66))
+        self.wrindex = Signal(intbv(62, min=0, max=63))
         self.wrdone = Signal(bool(0))
         self.done = Signal(bool(0))
 
@@ -123,16 +125,17 @@ def management(host_interface, mdio_interface):
         mdioenable = configregisters[managementreg][5]
         if (not host_interface.miimrdy) and mdioenable:
             if not mdio_interface.tri:
-                if mdiodata.wrindex == 64 or \
-                        (mdiodata.wrindex == 46 and mdiodata.wrdata[29]):
+                print("now2: %s %s" % (now(), mdio_interface.out))
+                mdio_interface.out.next = 1 if mdiodata.wrindex > 31 \
+                    else mdiodata.wrdata[mdiodata.wrindex]
+                if mdiodata.wrindex == 0 or \
+                        (mdiodata.wrindex == 18 and mdiodata.wrdata[29]):
                     mdiodata.wrdone.next = True
-                    mdiodata.wrindex.next = 0
+                    mdiodata.wrindex.next = 62
                     if not mdiodata.wrdata[29]:  # Write Operation Exit
                         mdiodata.done.next = True
                 else:
-                    mdio_interface.out.next = 1 if mdiodata.wrindex <= 31 \
-                        else mdiodata.wrdata[mdiodata.wrindex-32]
-                    mdiodata.wrindex.next = mdiodata.wrindex + 1
+                    mdiodata.wrindex.next = mdiodata.wrindex - 1
             else:  # Only in case of read operation
                 if mdiodata.rdindex == 17:
                     mdiodata.rdindex.next = 16
