@@ -1,12 +1,8 @@
-from myhdl import block, Signal, intbv, always_seq, concat
-from myhdl._simulator import now
-from gemac.interfaces import MDIOInterface
+from myhdl import block, Signal, intbv, always_seq, concat, now
 
 
 rx0, rx1, tx, flow, managementreg, ucast0, \
     ucast1, addrtable0, addrtable1, addrfiltermode, reserved = range(11)
-# st = intbv(0b01)[2:]
-# ta = intbv(0b10)[2:]
 
 
 class mdioData:
@@ -84,6 +80,7 @@ def management(host_interface, mdio_interface):
             if regindex != reserved:
                 host_interface.rddata.next = configregisters[regindex]
         if not host_interface.miimrdy and mdiodata.done:
+            print("Reaching here  %s" % now())
             host_interface.rddata.next = mdiodata.rddata[16:]
 
     @always_seq(host_interface.clk.posedge, reset=None)
@@ -111,9 +108,10 @@ def management(host_interface, mdio_interface):
                 host_interface.miimrdy:
             host_interface.miimrdy.next = False
             mdio_interface.tri.next = False
-            mdiodata.wrdata.next = concat(intbv(0b01)[2:], host_interface.opcode[2:],
-                                          host_interface.regaddress[10:], intbv(0b10)[2:],
-                                          host_interface.wrdata[16:])[32:]
+            mdiodata.wrdata.next = \
+                concat(intbv(0b01)[2:], host_interface.opcode[2:],
+                       host_interface.regaddress[10:], intbv(0b10)[2:],
+                       host_interface.wrdata[16:])[32:]
         if not host_interface.miimrdy:
             if mdiodata.wrdone:
                 mdio_interface.tri.next = True
@@ -125,7 +123,6 @@ def management(host_interface, mdio_interface):
         mdioenable = configregisters[managementreg][5]
         if (not host_interface.miimrdy) and mdioenable:
             if not mdio_interface.tri:
-                print("now2: %s %s" % (now(), mdio_interface.out))
                 mdio_interface.out.next = 1 if mdiodata.wrindex > 31 \
                     else mdiodata.wrdata[mdiodata.wrindex]
                 if mdiodata.wrindex == 0 or \
@@ -143,12 +140,13 @@ def management(host_interface, mdio_interface):
                 elif mdiodata.rdindex == 16:  # mdio_interface.inn should be 0
                     mdiodata.rdindex.next = 15
                 else:
-                    mdiodata.rddata.next = mdiodata.rddata & \
+                    mdiodata.rddata.next = mdiodata.rddata | \
                         (mdio_interface.inn << mdiodata.rdindex)
-                    mdiodata.rdindex.next = mdiodata.rdindex - 1
                     if mdiodata.rdindex == 0:
                         mdiodata.rdindex.next = 17
                         mdiodata.done.next = True
+                    else:
+                        mdiodata.rdindex.next = mdiodata.rdindex - 1
         else:
             mdiodata.wrdone.next = False
             mdiodata.done.next = False

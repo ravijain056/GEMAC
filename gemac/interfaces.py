@@ -55,14 +55,19 @@ class HostManagementInterface():
         if block:
             yield self.miimrdy.posedge
 
-    def mdioreadop(self, opcode, regaddress):
-        # @ TODO:
+    def mdioreadop(self, opcode, regaddress, block=True):
         if not self.miimrdy:
             yield self.miimrdy.posedge
         self.miimsel.next = 1
         self.hostreq.next = 1
         self.opcode.next = opcode[2:]
         self.regaddress.next = regaddress[10:]
+        yield self.clk.posedge
+        self.hostreq.next = 0
+        self.opcode.next = 0
+        self.regaddress.next = 0
+        if block:
+            yield self.miimrdy.posedge
 
 
 class MDIOInterface:
