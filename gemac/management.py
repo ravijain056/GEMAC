@@ -44,8 +44,10 @@ mdioTri - TriState Control for Signals - Low Indicating mdioOut to be
 @block
 def management(host_interface, mdio_interface):
 
-    configregisters = [Signal(intbv(0)[32:0]) for _ in range(10)]
-
+    configregisters = [Signal(intbv(0)[32:]) for _ in range(10)]
+    addresstable = [Signal(intbv(0)[48:]) for _ in range(4)]
+    addrtableread = Signal(bool(0))
+    addrtablelocation = Signal(intbv(0)[2:])
     mdiodata = mdioData()
 
     def getregisternumber(addr):
@@ -74,14 +76,22 @@ def management(host_interface, mdio_interface):
 
     @always_seq(host_interface.clk.posedge, reset=None)
     def readConfig():
-        if (not host_interface.miimsel) and host_interface.regaddress[9] and \
-                host_interface.opcode[1]:
+        if (not host_interface.miimsel) and host_interface.regaddress[9]:
             regindex = getregisternumber(host_interface.regaddress)
-            if regindex != reserved:
+            if regindex != reserved and host_interface.opcode[1]:
                 host_interface.rddata.next = configregisters[regindex]
+            if regindex == addrtable1 and not host_interface.opcode[1] and \
+                    host_interface.wrdata[23]:  # Address Table Read
+                loc = host_interface.wrdata[18:16]
+                addrtablelocation.next = loc
+                host_interface.rddata.next = addresstable[loc][32:0]
+                addrtableread.next = True
         if not host_interface.miimrdy and mdiodata.done:
             print("Reaching here  %s" % now())
             host_interface.rddata.next = mdiodata.rddata[16:]
+        if addrtableread:
+            addrtableread.next = False
+            host_interface.rddata.next = addresstable[addrtablelocation][48:32]
 
     @always_seq(host_interface.clk.posedge, reset=None)
     def writeConfig():
@@ -90,6 +100,10 @@ def management(host_interface, mdio_interface):
             regindex = getregisternumber(host_interface.regaddress)
             if regindex != reserved:
                 configregisters[regindex].next = host_interface.wrdata
+            if regindex == addrtable1 and not host_interface.wrdata[23]:
+                addresstable[host_interface.wrdata[23]].next = \
+                    (host_interface.wrdata[16:0] << 32) & \
+                    configregisters[addrtable0]   # Address Table Write
 
     # @TODO: Address Table Read.
 
