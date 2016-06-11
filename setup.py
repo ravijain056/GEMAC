@@ -7,6 +7,7 @@ setup(
     url='http://github.com/ravijain056/GEMAC',
     packages=['gemac'],
     description='GEMAC implementation and tools',
+    long_description=open('README.md').read() + '\n\n',
     install_requires=['myhdl >= 1.0.dev0'],
     classifiers=[
         'License :: OSI Approved :: BSD License',
