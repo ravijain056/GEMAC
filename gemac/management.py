@@ -1,54 +1,74 @@
-from myhdl import block, Signal, intbv, always_seq, concat, now
+# -*- coding: utf-8 -*-
 
+from myhdl import block, Signal, intbv, always_seq, concat
 
 rx0, rx1, tx, flow, managementreg, ucast0, \
     ucast1, addrtable0, addrtable1, addrfiltermode, reserved = range(11)
+""" Indexing of configuration Registers
+"""
 
 
 class mdioData:
+    """ Collection of Signals required for MDIO transaction."""
     def __init__(self):
-        self.hostclk_count = Signal(intbv(0)[5:])  # Used to drive mdc
+        self.hostclk_count = Signal(intbv(0)[5:])
+        """ Used To drive mdc from hostclk. """
+
         self.wrdata = Signal(intbv(0)[32:])
         self.rddata = Signal(intbv(0)[16:])
-        self.rdindex = Signal(intbv(17, min=0, max=18))  # in index during rdop
-        self.wrindex = Signal(intbv(62, min=0, max=63))
+        """ Used to store data to be read/write from the host interface. """
+
+        self.rdindex = Signal(intbv(17, min=0, max=18))
+        self.wrindex = Signal(intbv(64, min=0, max=65))
+        """ Used for indexing the MDIO transactoins. """
+
         self.wrdone = Signal(bool(0))
         self.done = Signal(bool(0))
-
-"""
-Management Data - Input Output Interface.
-
-hostClk - Reference Clk for Management/Configuration Operations. >10MHz
-hostOpcode (2 Bits) - Define Operation for MDIO Interface. Bit 1 also
-    used as control signal for configuration data transfer.
-hostAddr (10 Bits) - Address of Register to be accessed. According to
-    Table 8.2, Page 27, Xilinx UG 144 doc.
-hostWriteData (32 bits) - Data write.
-hostReadData (32 bits) - Data read.
-hostMIIM_sel - Set by Host. When High MDIO interface Accessed,
-    Else Configuration registers.
-hostReq - Set by Host to Indicate ongoing MDIO transaction.
-hostMIIM_rdy - Set by MDIO Interface to indicate ready for new transaction.
-
-mdc - Management Clock: programmable frequency derived from host_clk.
-mdioIn - Input data signal from PHY for its configuration and
-    status.(TriStateBuffer Connected)
-mdioOut - Output data signal from PHY for its configuration and
-    status.(TriStateBuffer Connected)
-mdioTri - TriState Control for Signals - Low Indicating mdioOut to be
-    asserted to the MDIO bus.
-
-"""
+        """ Used to Signal completion of MDIO transactions. """
 
 
 @block
-def management(host_interface, mdio_interface):
+def management(hostintf, mdiointf, reset):
+    """ Management Block.
 
-    configregisters = [Signal(intbv(0)[32:0]) for _ in range(10)]
+    Responsible for host interaction for read/write of configuration registers,
+    Address Table and conversion of Host transactions to MDIO MII transactions.
 
+    Args:
+        hostintf - Instance of 'HostManagementInterface' class in interfaces.
+        mdiointf - Instance of 'MDIOInterface' class in interfaces.
+        reset: Asynchronous reset Signal from Host
+
+    Attributes:
+        configregisters - List of 10 32-bits wide Configuration Registers.
+        addresstable - List of 4 48-bits wide MAC Addresses to be used by
+            Address Filter.
+        addrtableread - Signal used for address table read operation.
+        addrtablelocation - Sampled value of address table location while
+            accessing it.
+        mdiodata - Collection of Signals used for performing MDIO operations.
+
+    Note:
+        Designed according to usage described in Xilinx User Guide
+        144(1-GEMAC), Pg 77-89.
+
+    """
+    configregisters = [Signal(intbv(0)[32:]) for _ in range(10)]
+    addresstable = [Signal(intbv(0)[48:]) for _ in range(4)]
+    addrtableread = Signal(bool(0))
+    addrtablelocation = Signal(intbv(0)[2:])
     mdiodata = mdioData()
 
-    def getregisternumber(addr):
+    def getregindex(addr):
+        """Task/Function to get index of configuration registers.
+
+        Args:
+            addr (10 bits) - The register address.
+
+        Returns:
+            int: Configuration Register index.
+
+        """
         if addr >= 0x200 and addr <= 0x23F:
             return rx0
         elif addr >= 0x240 and addr <= 0x27F:
@@ -72,58 +92,89 @@ def management(host_interface, mdio_interface):
         else:
             return reserved
 
-    @always_seq(host_interface.clk.posedge, reset=None)
-    def readConfig():
-        if (not host_interface.miimsel) and host_interface.regaddress[9] and \
-                host_interface.opcode[1]:
-            regindex = getregisternumber(host_interface.regaddress)
-            if regindex != reserved:
-                host_interface.rddata.next = configregisters[regindex]
-        if not host_interface.miimrdy and mdiodata.done:
-            print("Reaching here  %s" % now())
-            host_interface.rddata.next = mdiodata.rddata[16:]
+    @always_seq(hostintf.clk.posedge, reset=reset)
+    def readData():
+        """Process block to drive 'hostintf.rddata'
 
-    @always_seq(host_interface.clk.posedge, reset=None)
+        Drives rddata in case of access of Configuration Registers/Address
+        Table or on completion of MDIO Read operation.
+
+        """
+        if (not hostintf.miimsel) and hostintf.regaddress[9]:
+            regindex = getregindex(hostintf.regaddress)
+
+            if regindex != reserved and hostintf.opcode[1]:  # ReadConfig
+                hostintf.rddata.next = configregisters[regindex]
+
+            if regindex == addrtable1 and not hostintf.opcode[1] and \
+                    hostintf.wrdata[23]:  # Address Table Read 0
+                loc = hostintf.wrdata[18:16]
+                addrtablelocation.next = loc
+                hostintf.rddata.next = addresstable[loc][32:0]
+                addrtableread.next = True
+
+        if not hostintf.miimrdy and mdiodata.done:  # MDIO Read
+            hostintf.rddata.next = mdiodata.rddata[16:]
+
+        if addrtableread:  # Address Table Read 1
+            addrtableread.next = False
+            hostintf.rddata.next = addresstable[addrtablelocation][48:32]
+
+    @always_seq(hostintf.clk.posedge, reset=reset)
     def writeConfig():
-        if (not host_interface.miimsel) and host_interface.regaddress[9] and \
-                (not host_interface.opcode[1]):
-            regindex = getregisternumber(host_interface.regaddress)
+        """Process to write into configuration registers and address table."""
+        if (not hostintf.miimsel) and hostintf.regaddress[9] and \
+                (not hostintf.opcode[1]):
+            regindex = getregindex(hostintf.regaddress)
+
+            # WriteConfig
             if regindex != reserved:
-                configregisters[regindex].next = host_interface.wrdata
+                configregisters[regindex].next = hostintf.wrdata
 
-    # @TODO: Address Table Read.
+            # Address Table Write
+            if regindex == addrtable1 and not hostintf.wrdata[23]:
+                addresstable[hostintf.wrdata[18:16]].next = \
+                    (hostintf.wrdata[16:0] << 32) | configregisters[addrtable0]
 
-    @always_seq(host_interface.clk.posedge, reset=None)
+    @always_seq(hostintf.clk.posedge, reset=reset)
     def mdcdriver():
+        """Process to drive 'mdiointf.mdc' from 'hostintf.clk'."""
         clkDiv = configregisters[managementreg][5:]  # + 1 * 2
         if mdiodata.hostclk_count == clkDiv:
-            mdio_interface.mdc.next = not mdio_interface.mdc
+            mdiointf.mdc.next = not mdiointf.mdc
             mdiodata.hostclk_count.next = 0
         else:
             mdiodata.hostclk_count.next = mdiodata.hostclk_count + 1
 
-    @always_seq(host_interface.clk.posedge, reset=None)
+    @always_seq(hostintf.clk.posedge, reset=reset)
     def mdioinitiate():
-        if host_interface.hostreq and host_interface.miimsel and \
-                host_interface.miimrdy:
-            host_interface.miimrdy.next = False
-            mdio_interface.tri.next = False
-            mdiodata.wrdata.next = \
-                concat(intbv(0b01)[2:], host_interface.opcode[2:],
-                       host_interface.regaddress[10:], intbv(0b10)[2:],
-                       host_interface.wrdata[16:])[32:]
-        if not host_interface.miimrdy:
+        """Process to initiate and terminate MDIO operation."""
+        if hostintf.hostreq and hostintf.miimsel and hostintf.miimrdy:
+            hostintf.miimrdy.next = False
+            mdiointf.tri.next = False
+            wrdata = concat(intbv(0b01)[2:], hostintf.opcode[2:],
+                            hostintf.regaddress[10:], intbv(0b10)[2:],
+                            hostintf.wrdata[16:])
+            mdiodata.wrdata.next = wrdata[32:]
+        if not hostintf.miimrdy:
             if mdiodata.wrdone:
-                mdio_interface.tri.next = True
+                mdiointf.tri.next = True
             if mdiodata.done:
-                host_interface.miimrdy.next = True
+                hostintf.miimrdy.next = True
 
-    @always_seq(mdio_interface.mdc.posedge, reset=None)
+    @always_seq(mdiointf.mdc.posedge, reset=reset)
     def mdiooperation():
+        """Process to perform the MDIO Read/Write Operation.
+
+        Drives the 'MDIOInterface' signals in accordance with the operation
+        to be performed (read/write). Basically converts parallel data to
+        serial data over 'mdiointf.out' (write) and vice-versa (read).
+
+        """
         mdioenable = configregisters[managementreg][5]
-        if (not host_interface.miimrdy) and mdioenable:
-            if not mdio_interface.tri:
-                mdio_interface.out.next = 1 if mdiodata.wrindex > 31 \
+        if (not hostintf.miimrdy) and mdioenable:
+            if not mdiointf.tri:
+                mdiointf.out.next = 1 if mdiodata.wrindex > 31 \
                     else mdiodata.wrdata[mdiodata.wrindex]
                 if mdiodata.wrindex == 0 or \
                         (mdiodata.wrindex == 18 and mdiodata.wrdata[29]):
@@ -137,11 +188,11 @@ def management(host_interface, mdio_interface):
                 if mdiodata.rdindex == 17:
                     mdiodata.rdindex.next = 16
                     mdiodata.rddata.next = 0
-                elif mdiodata.rdindex == 16:  # mdio_interface.inn should be 0
+                elif mdiodata.rdindex == 16:  # mdiointf.inn should be 0
                     mdiodata.rdindex.next = 15
                 else:
                     mdiodata.rddata.next = mdiodata.rddata | \
-                        (mdio_interface.inn << mdiodata.rdindex)
+                        (mdiointf.inn << mdiodata.rdindex)
                     if mdiodata.rdindex == 0:
                         mdiodata.rdindex.next = 17
                         mdiodata.done.next = True
@@ -151,4 +202,4 @@ def management(host_interface, mdio_interface):
             mdiodata.wrdone.next = False
             mdiodata.done.next = False
 
-    return readConfig, writeConfig, mdcdriver, mdioinitiate, mdiooperation
+    return readData, writeConfig, mdcdriver, mdioinitiate, mdiooperation

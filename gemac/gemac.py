@@ -33,6 +33,6 @@ def gemac(txclient_interface, rxclient_interface, phy_interface,
     gmiiInst = gmii(phy_interface, txd2gmii, rxd2engine,
                     txclient_interface.gtxclk)
 
-    mdioInst = management(hostmanagement_interface, mdio_interface)
+    mdioInst = management(hostmanagement_interface, mdio_interface, reset)
 
     return instances()
