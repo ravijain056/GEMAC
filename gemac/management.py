@@ -75,21 +75,20 @@ def management(host_interface, mdio_interface):
             return reserved
 
     @always_seq(host_interface.clk.posedge, reset=None)
-    def readConfig():
+    def readData():
         if (not host_interface.miimsel) and host_interface.regaddress[9]:
             regindex = getregisternumber(host_interface.regaddress)
-            if regindex != reserved and host_interface.opcode[1]:
+            if regindex != reserved and host_interface.opcode[1]:  # Read Config
                 host_interface.rddata.next = configregisters[regindex]
             if regindex == addrtable1 and not host_interface.opcode[1] and \
-                    host_interface.wrdata[23]:  # Address Table Read
+                    host_interface.wrdata[23]:  # Address Table Read 0
                 loc = host_interface.wrdata[18:16]
                 addrtablelocation.next = loc
                 host_interface.rddata.next = addresstable[loc][32:0]
                 addrtableread.next = True
-        if not host_interface.miimrdy and mdiodata.done:
-            print("Reaching here  %s" % now())
+        if not host_interface.miimrdy and mdiodata.done:  # MDIO Read
             host_interface.rddata.next = mdiodata.rddata[16:]
-        if addrtableread:
+        if addrtableread:  # Address Table Read 1
             addrtableread.next = False
             host_interface.rddata.next = addresstable[addrtablelocation][48:32]
 
@@ -101,11 +100,9 @@ def management(host_interface, mdio_interface):
             if regindex != reserved:
                 configregisters[regindex].next = host_interface.wrdata
             if regindex == addrtable1 and not host_interface.wrdata[23]:
-                addresstable[host_interface.wrdata[23]].next = \
-                    (host_interface.wrdata[16:0] << 32) & \
+                addresstable[host_interface.wrdata[18:16]].next = \
+                    (host_interface.wrdata[16:0] << 32) | \
                     configregisters[addrtable0]   # Address Table Write
-
-    # @TODO: Address Table Read.
 
     @always_seq(host_interface.clk.posedge, reset=None)
     def mdcdriver():
@@ -165,4 +162,4 @@ def management(host_interface, mdio_interface):
             mdiodata.wrdone.next = False
             mdiodata.done.next = False
 
-    return readConfig, writeConfig, mdcdriver, mdioinitiate, mdiooperation
+    return readData, writeConfig, mdcdriver, mdioinitiate, mdiooperation
