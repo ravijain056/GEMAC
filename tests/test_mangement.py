@@ -3,7 +3,7 @@ from gemac.management import management
 from myhdl import instance, delay, block, intbv, now
 
 
-def test_readwriteconfig():
+def test_rwconfig():
 
     @block
     def test():
@@ -38,6 +38,46 @@ def test_readwriteconfig():
     testInst = test()
     testInst.config_sim(trace=False)
     testInst.run_sim(duration=300)
+    testInst.quit_sim()
+
+
+def test_rwaddrtable():
+
+    @block
+    def test():
+        hostmanagement_interface = HostManagementInterface()
+        mdio_interface = MDIOInterface()
+        managementInst = management(hostmanagement_interface, mdio_interface)
+        print("Testing Read/Write Address Table%s" % managementInst)
+
+        @instance
+        def hostclkdriver():
+            while True:
+                hostmanagement_interface.clk.next = \
+                    not hostmanagement_interface.clk
+                yield delay(5)
+
+        def clkwait(count=1):
+            while count:
+                yield hostmanagement_interface.clk.posedge
+                count -= 1
+
+        @instance
+        def testlogic():
+            yield clkwait(count=10)
+            yield hostmanagement_interface.writeaddrtable(1, 0xAA22BB55FF22)
+            yield clkwait(count=4)
+            yield hostmanagement_interface.readaddrtable(1)
+            readaddr = hostmanagement_interface.rddata[32:]
+            yield hostmanagement_interface.clk.posedge
+            readaddr = readaddr | (hostmanagement_interface.rddata[16:] << 32)
+            assert readaddr == 0xAA22BB55FF22
+
+        return testlogic, hostclkdriver, managementInst
+
+    testInst = test()
+    testInst.config_sim(trace=True)
+    testInst.run_sim(duration=500)
     testInst.quit_sim()
 
 
@@ -180,7 +220,7 @@ def test_mdioread():
         return testlogic, hostclkdriver, managementInst
 
     testInst = test()
-    testInst.config_sim(trace=True)
+    testInst.config_sim(trace=False)
     testInst.run_sim(duration=6000)
     testInst.quit_sim()
 

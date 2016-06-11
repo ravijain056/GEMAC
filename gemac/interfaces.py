@@ -39,6 +39,15 @@ class HostManagementInterface():
         self.regaddress.next = 0
         yield self.clk.posedge
 
+    def writeaddrtable(self, loc, addr):
+        yield self.writeconfig(0x388, intbv(addr)[32:])
+        yield self.writeconfig(0x38C,
+                               ((intbv(loc)[2:] << 16) | intbv(addr)[48:32]))
+
+    def readaddrtable(self, loc):
+        yield self.writeconfig(0x38C, ((1 << 23) | (intbv(loc)[2:] << 16)))
+        yield self.clk.posedge
+
     def mdiowriteop(self, opcode, regaddress, data, block=True):
         if not self.miimrdy:
             yield self.miimrdy.posedge
