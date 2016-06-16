@@ -13,3 +13,6 @@ lastfailed
 *.vcd.*
 *.v
 *.vhd
+*.log
+*.o
+/work/*

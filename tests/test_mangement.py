@@ -1,6 +1,8 @@
 from gemac.interfaces import HostManagementInterface, MDIOInterface
 from gemac.management import management
-from myhdl import instance, delay, block, intbv, now
+from myhdl import instance, delay, block, intbv, now, StopSimulation, \
+    ResetSignal
+from myhdl.conversion import verify
 
 
 def test_rwconfig():
@@ -10,8 +12,9 @@ def test_rwconfig():
 
         hostmanagement_interface = HostManagementInterface()
         mdio_interface = MDIOInterface()
-        managementInst = management(hostmanagement_interface, mdio_interface)
-        print("Testing Read/Write Configuration Register%s" % managementInst)
+        reset = ResetSignal(1, active=0, async=True)
+        dutInst = management(hostmanagement_interface, mdio_interface, reset)
+        print("Testing Read/Write Configuration Register%s" % dutInst)
 
         @instance
         def hostclkdriver():
@@ -33,7 +36,7 @@ def test_rwconfig():
             yield hostmanagement_interface.readconfig(0x239)
             assert hostmanagement_interface.rddata[32:] == intbv(0x12345678)
 
-        return testlogic, hostclkdriver, managementInst
+        return testlogic, hostclkdriver, dutInst
 
     testInst = test()
     testInst.config_sim(trace=False)
@@ -47,8 +50,9 @@ def test_rwaddrtable():
     def test():
         hostmanagement_interface = HostManagementInterface()
         mdio_interface = MDIOInterface()
-        managementInst = management(hostmanagement_interface, mdio_interface)
-        print("Testing Read/Write Address Table%s" % managementInst)
+        reset = ResetSignal(1, active=0, async=True)
+        dutInst = management(hostmanagement_interface, mdio_interface, reset)
+        print("Testing Read/Write Address Table%s" % dutInst)
 
         @instance
         def hostclkdriver():
@@ -73,7 +77,7 @@ def test_rwaddrtable():
             readaddr = readaddr | (hostmanagement_interface.rddata[16:] << 32)
             assert readaddr == 0xAA22BB55FF22
 
-        return testlogic, hostclkdriver, managementInst
+        return testlogic, hostclkdriver, dutInst
 
     testInst = test()
     testInst.config_sim(trace=True)
@@ -87,8 +91,9 @@ def test_mdioclkgen():
     def test():
         hostmanagement_interface = HostManagementInterface()
         mdio_interface = MDIOInterface()
-        managementInst = management(hostmanagement_interface, mdio_interface)
-        print("Testing MDIO Clk Generator %s" % managementInst)
+        reset = ResetSignal(1, active=0, async=True)
+        dutInst = management(hostmanagement_interface, mdio_interface, reset)
+        print("Testing MDIO Clk Generator %s" % dutInst)
 
         @instance
         def hostclkdriver():
@@ -116,7 +121,7 @@ def test_mdioclkgen():
             time_hostclk = now() - time_hostclk
             assert time_hostclk == time_mdc / 6
 
-        return testlogic, hostclkdriver, managementInst
+        return testlogic, hostclkdriver, dutInst
 
     testInst = test()
     testInst.config_sim(trace=False)
@@ -131,8 +136,9 @@ def test_mdiowrite():
 
         hostmanagement_interface = HostManagementInterface()
         mdio_interface = MDIOInterface()
-        managementInst = management(hostmanagement_interface, mdio_interface)
-        print("Testing MDIO Write Operation %s" % managementInst)
+        reset = ResetSignal(1, active=0, async=True)
+        dutInst = management(hostmanagement_interface, mdio_interface, reset)
+        print("Testing MDIO Write Operation %s" % dutInst)
 
         @instance
         def hostclkdriver():
@@ -163,7 +169,7 @@ def test_mdiowrite():
                 yield mdio_interface.mdc.posedge
             assert wrdata[32:] == 0x5982ABCD
 
-        return testlogic, hostclkdriver, managementInst
+        return testlogic, hostclkdriver, dutInst
 
     testInst = test()
     testInst.config_sim(trace=False)
@@ -178,8 +184,9 @@ def test_mdioread():
 
         hostmanagement_interface = HostManagementInterface()
         mdio_interface = MDIOInterface()
-        managementInst = management(hostmanagement_interface, mdio_interface)
-        print("Testing MDIO Write Operation %s" % managementInst)
+        reset = ResetSignal(1, active=0, async=True)
+        dutInst = management(hostmanagement_interface, mdio_interface, reset)
+        print("Testing MDIO Write Operation %s" % dutInst)
 
         @instance
         def hostclkdriver():
@@ -217,7 +224,7 @@ def test_mdioread():
             yield hostmanagement_interface.miimrdy.posedge
             assert hostmanagement_interface.rddata[16:] == 0x5555
 
-        return testlogic, hostclkdriver, managementInst
+        return testlogic, hostclkdriver, dutInst
 
     testInst = test()
     testInst.config_sim(trace=False)
@@ -227,9 +234,29 @@ def test_mdioread():
 
 def test_convertible():
 
-    hostmanagement_interface = HostManagementInterface()
-    mdio_interface = MDIOInterface()
-    managementInst = management(hostmanagement_interface, mdio_interface)
-    print("Testing Convertibility %s" % managementInst)
-    managementInst.convert(hdl='Verilog')
-    managementInst.convert(hdl='VHDL')
+    @block
+    def test():
+        hostmanagement_interface = HostManagementInterface()
+        mdio_interface = MDIOInterface()
+        reset = ResetSignal(1, active=0, async=True)
+        dutInst = management(hostmanagement_interface, mdio_interface, reset)
+        print("Testing Convertibility %s" % dutInst)
+
+        @instance
+        def hostclkdriver():
+            while True:
+                hostmanagement_interface.clk.next = \
+                    not hostmanagement_interface.clk
+                yield delay(5)
+
+        @instance
+        def testlogic():
+            yield delay(20)
+            print("Converted!")
+            raise StopSimulation
+
+        return dutInst, testlogic, hostclkdriver
+
+    testInst = test()
+    verify.simulator = 'iverilog'
+    assert testInst.verify_convert() == 0

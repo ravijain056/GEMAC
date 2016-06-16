@@ -11,7 +11,7 @@ class mdioData:
         self.wrdata = Signal(intbv(0)[32:])
         self.rddata = Signal(intbv(0)[16:])
         self.rdindex = Signal(intbv(17, min=0, max=18))  # in index during rdop
-        self.wrindex = Signal(intbv(62, min=0, max=63))
+        self.wrindex = Signal(intbv(64, min=0, max=65))
         self.wrdone = Signal(bool(0))
         self.done = Signal(bool(0))
 
@@ -42,7 +42,7 @@ mdioTri - TriState Control for Signals - Low Indicating mdioOut to be
 
 
 @block
-def management(host_interface, mdio_interface):
+def management(host_interface, mdio_interface, reset):
 
     configregisters = [Signal(intbv(0)[32:]) for _ in range(10)]
     addresstable = [Signal(intbv(0)[48:]) for _ in range(4)]
@@ -74,7 +74,7 @@ def management(host_interface, mdio_interface):
         else:
             return reserved
 
-    @always_seq(host_interface.clk.posedge, reset=None)
+    @always_seq(host_interface.clk.posedge, reset=reset)
     def readData():
         if (not host_interface.miimsel) and host_interface.regaddress[9]:
             regindex = getregisternumber(host_interface.regaddress)
@@ -92,7 +92,7 @@ def management(host_interface, mdio_interface):
             addrtableread.next = False
             host_interface.rddata.next = addresstable[addrtablelocation][48:32]
 
-    @always_seq(host_interface.clk.posedge, reset=None)
+    @always_seq(host_interface.clk.posedge, reset=reset)
     def writeConfig():
         if (not host_interface.miimsel) and host_interface.regaddress[9] and \
                 (not host_interface.opcode[1]):
@@ -104,7 +104,7 @@ def management(host_interface, mdio_interface):
                     (host_interface.wrdata[16:0] << 32) | \
                     configregisters[addrtable0]   # Address Table Write
 
-    @always_seq(host_interface.clk.posedge, reset=None)
+    @always_seq(host_interface.clk.posedge, reset=reset)
     def mdcdriver():
         clkDiv = configregisters[managementreg][5:]  # + 1 * 2
         if mdiodata.hostclk_count == clkDiv:
@@ -113,23 +113,23 @@ def management(host_interface, mdio_interface):
         else:
             mdiodata.hostclk_count.next = mdiodata.hostclk_count + 1
 
-    @always_seq(host_interface.clk.posedge, reset=None)
+    @always_seq(host_interface.clk.posedge, reset=reset)
     def mdioinitiate():
         if host_interface.hostreq and host_interface.miimsel and \
                 host_interface.miimrdy:
             host_interface.miimrdy.next = False
             mdio_interface.tri.next = False
-            mdiodata.wrdata.next = \
-                concat(intbv(0b01)[2:], host_interface.opcode[2:],
-                       host_interface.regaddress[10:], intbv(0b10)[2:],
-                       host_interface.wrdata[16:])[32:]
+            wrdata = concat(intbv(0b01)[2:], host_interface.opcode[2:],
+                            host_interface.regaddress[10:], intbv(0b10)[2:],
+                            host_interface.wrdata[16:])
+            mdiodata.wrdata.next = wrdata[32:]
         if not host_interface.miimrdy:
             if mdiodata.wrdone:
                 mdio_interface.tri.next = True
             if mdiodata.done:
                 host_interface.miimrdy.next = True
 
-    @always_seq(mdio_interface.mdc.posedge, reset=None)
+    @always_seq(mdio_interface.mdc.posedge, reset=reset)
     def mdiooperation():
         mdioenable = configregisters[managementreg][5]
         if (not host_interface.miimrdy) and mdioenable:
