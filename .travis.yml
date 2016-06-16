@@ -27,7 +27,6 @@ install:
   - pip install coveralls
   - pip install .
 
-
 script:
    - cd test
    - coverage run --source gemac -m py.test -s
