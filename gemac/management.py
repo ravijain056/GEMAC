@@ -42,7 +42,7 @@ mdioTri - TriState Control for Signals - Low Indicating mdioOut to be
 
 
 @block
-def management(host_interface, mdio_interface, reset):
+def management(hostintf, mdiointf, reset):
 
     configregisters = [Signal(intbv(0)[32:]) for _ in range(10)]
     addresstable = [Signal(intbv(0)[48:]) for _ in range(4)]
@@ -50,7 +50,7 @@ def management(host_interface, mdio_interface, reset):
     addrtablelocation = Signal(intbv(0)[2:])
     mdiodata = mdioData()
 
-    def getregisternumber(addr):
+    def getregindex(addr):
         if addr >= 0x200 and addr <= 0x23F:
             return rx0
         elif addr >= 0x240 and addr <= 0x27F:
@@ -74,67 +74,76 @@ def management(host_interface, mdio_interface, reset):
         else:
             return reserved
 
-    @always_seq(host_interface.clk.posedge, reset=reset)
+    @always_seq(hostintf.clk.posedge, reset=reset)
     def readData():
-        if (not host_interface.miimsel) and host_interface.regaddress[9]:
-            regindex = getregisternumber(host_interface.regaddress)
-            if regindex != reserved and host_interface.opcode[1]:  # ReadConfig
-                host_interface.rddata.next = configregisters[regindex]
-            if regindex == addrtable1 and not host_interface.opcode[1] and \
-                    host_interface.wrdata[23]:  # Address Table Read 0
-                loc = host_interface.wrdata[18:16]
+
+        if (not hostintf.miimsel) and hostintf.regaddress[9]:
+            regindex = getregindex(hostintf.regaddress)
+
+            if regindex != reserved and hostintf.opcode[1]:  # ReadConfig
+                hostintf.rddata.next = configregisters[regindex]
+
+            if regindex == addrtable1 and not hostintf.opcode[1] and \
+                    hostintf.wrdata[23]:  # Address Table Read 0
+                loc = hostintf.wrdata[18:16]
                 addrtablelocation.next = loc
-                host_interface.rddata.next = addresstable[loc][32:0]
+                hostintf.rddata.next = addresstable[loc][32:0]
                 addrtableread.next = True
-        if not host_interface.miimrdy and mdiodata.done:  # MDIO Read
-            host_interface.rddata.next = mdiodata.rddata[16:]
+
+        if not hostintf.miimrdy and mdiodata.done:  # MDIO Read
+            hostintf.rddata.next = mdiodata.rddata[16:]
+
         if addrtableread:  # Address Table Read 1
             addrtableread.next = False
-            host_interface.rddata.next = addresstable[addrtablelocation][48:32]
+            hostintf.rddata.next = addresstable[addrtablelocation][48:32]
 
-    @always_seq(host_interface.clk.posedge, reset=reset)
+    @always_seq(hostintf.clk.posedge, reset=reset)
     def writeConfig():
-        if (not host_interface.miimsel) and host_interface.regaddress[9] and \
-                (not host_interface.opcode[1]):
-            regindex = getregisternumber(host_interface.regaddress)
-            if regindex != reserved:
-                configregisters[regindex].next = host_interface.wrdata
-            if regindex == addrtable1 and not host_interface.wrdata[23]:
-                addresstable[host_interface.wrdata[18:16]].next = \
-                    (host_interface.wrdata[16:0] << 32) | \
-                    configregisters[addrtable0]   # Address Table Write
 
-    @always_seq(host_interface.clk.posedge, reset=reset)
+        if (not hostintf.miimsel) and hostintf.regaddress[9] and \
+                (not hostintf.opcode[1]):
+            regindex = getregindex(hostintf.regaddress)
+
+            # Config Registers Write
+            if regindex != reserved:
+                configregisters[regindex].next = hostintf.wrdata
+
+            # Address Table Write
+            if regindex == addrtable1 and not hostintf.wrdata[23]:
+                addresstable[hostintf.wrdata[18:16]].next = \
+                    (hostintf.wrdata[16:0] << 32) | configregisters[addrtable0]
+
+    @always_seq(hostintf.clk.posedge, reset=reset)
     def mdcdriver():
         clkDiv = configregisters[managementreg][5:]  # + 1 * 2
         if mdiodata.hostclk_count == clkDiv:
-            mdio_interface.mdc.next = not mdio_interface.mdc
+            mdiointf.mdc.next = not mdiointf.mdc
             mdiodata.hostclk_count.next = 0
         else:
             mdiodata.hostclk_count.next = mdiodata.hostclk_count + 1
 
-    @always_seq(host_interface.clk.posedge, reset=reset)
+    @always_seq(hostintf.clk.posedge, reset=reset)
     def mdioinitiate():
-        if host_interface.hostreq and host_interface.miimsel and \
-                host_interface.miimrdy:
-            host_interface.miimrdy.next = False
-            mdio_interface.tri.next = False
-            wrdata = concat(intbv(0b01)[2:], host_interface.opcode[2:],
-                            host_interface.regaddress[10:], intbv(0b10)[2:],
-                            host_interface.wrdata[16:])
+        if hostintf.hostreq and hostintf.miimsel and \
+                hostintf.miimrdy:
+            hostintf.miimrdy.next = False
+            mdiointf.tri.next = False
+            wrdata = concat(intbv(0b01)[2:], hostintf.opcode[2:],
+                            hostintf.regaddress[10:], intbv(0b10)[2:],
+                            hostintf.wrdata[16:])
             mdiodata.wrdata.next = wrdata[32:]
-        if not host_interface.miimrdy:
+        if not hostintf.miimrdy:
             if mdiodata.wrdone:
-                mdio_interface.tri.next = True
+                mdiointf.tri.next = True
             if mdiodata.done:
-                host_interface.miimrdy.next = True
+                hostintf.miimrdy.next = True
 
-    @always_seq(mdio_interface.mdc.posedge, reset=reset)
+    @always_seq(mdiointf.mdc.posedge, reset=reset)
     def mdiooperation():
         mdioenable = configregisters[managementreg][5]
-        if (not host_interface.miimrdy) and mdioenable:
-            if not mdio_interface.tri:
-                mdio_interface.out.next = 1 if mdiodata.wrindex > 31 \
+        if (not hostintf.miimrdy) and mdioenable:
+            if not mdiointf.tri:
+                mdiointf.out.next = 1 if mdiodata.wrindex > 31 \
                     else mdiodata.wrdata[mdiodata.wrindex]
                 if mdiodata.wrindex == 0 or \
                         (mdiodata.wrindex == 18 and mdiodata.wrdata[29]):
@@ -148,11 +157,11 @@ def management(host_interface, mdio_interface, reset):
                 if mdiodata.rdindex == 17:
                     mdiodata.rdindex.next = 16
                     mdiodata.rddata.next = 0
-                elif mdiodata.rdindex == 16:  # mdio_interface.inn should be 0
+                elif mdiodata.rdindex == 16:  # mdiointf.inn should be 0
                     mdiodata.rdindex.next = 15
                 else:
                     mdiodata.rddata.next = mdiodata.rddata | \
-                        (mdio_interface.inn << mdiodata.rdindex)
+                        (mdiointf.inn << mdiodata.rdindex)
                     if mdiodata.rdindex == 0:
                         mdiodata.rdindex.next = 17
                         mdiodata.done.next = True
