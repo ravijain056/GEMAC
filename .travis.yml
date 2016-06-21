@@ -23,6 +23,8 @@ before_install:
 
 # command to install dependencies
 install:
+  - chmod +x ./scripts/ci/install_myhdl.sh
+  - ./scripts/ci/install_myhdl.sh
   - pip install coverage
   - pip install coveralls
   - pip install .
