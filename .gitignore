@@ -1,13 +1,8 @@
 *.pyc
 *.pyo
 __pycache__
-*.egg-info
 .project
 .pydevproject
-lastfailed
-/build/*
-/dist/*
-/gemac.egg-info/*
 .coverage
 *.vcd
 *.vcd.*
@@ -15,4 +10,9 @@ lastfailed
 *.vhd
 *.log
 *.o
-/work/*
+/dist/
+/build/
+/work/
+/.cache/
+/.settings/
+/gemac.egg-info/
