@@ -4,12 +4,12 @@ from .txEngine import txEngine
 from .rxEngine import rxEngine
 from .gmii import gmii
 from .flowControl import flowControl
-from .mdio import mdio
+from .management import management
 
 
 @block
 def gemac(txclient_interface, rxclient_interface, phy_interface,
-          flow_interface, management_interface, mdio_interface, reset):
+          flow_interface, hostmanagement_interface, mdio_interface, reset):
 
     txpause = Signal(bool(0))  # Transmit Pause Frame
     rxder = Signal(bool(0))  # Receive Data Error
@@ -33,6 +33,6 @@ def gemac(txclient_interface, rxclient_interface, phy_interface,
     gmiiInst = gmii(phy_interface, txd2gmii, rxd2engine,
                     txclient_interface.gtxclk)
 
-    mdioInst = mdio(management_interface, mdio_interface)
+    mdioInst = management(hostmanagement_interface, mdio_interface, reset)
 
     return instances()

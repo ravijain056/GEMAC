@@ -1,6 +1,16 @@
 *.pyc
 *.pyo
 __pycache__
-*.egg-info
 .project
 .pydevproject
+*.vcd
+*.vcd.*
+*.vhd
+*.log
+*.o
+/dist/
+/build/
+/work/
+/.cache/
+/.settings/
+/gemac.egg-info/
