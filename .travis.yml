@@ -28,7 +28,7 @@ install:
   - pip install .
 
 script:
-   - cd test
+   - cd tests
    - coverage run --source gemac -m py.test -s
    - cp .coverage ../
 
