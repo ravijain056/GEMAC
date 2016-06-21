@@ -3,7 +3,6 @@
 __pycache__
 .project
 .pydevproject
-.coverage
 *.vcd
 *.vcd.*
 *.v
