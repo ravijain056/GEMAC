@@ -10,31 +10,31 @@ def test_rwconfig():
     @block
     def test():
 
-        hostmanagement_interface = HostManagementInterface()
-        mdio_interface = MDIOInterface()
+        hostintf = HostManagementInterface()
+        mdiointf = MDIOInterface()
         reset = ResetSignal(1, active=0, async=True)
-        dutInst = management(hostmanagement_interface, mdio_interface, reset)
+        dutInst = management(hostintf, mdiointf, reset)
         print("Testing Read/Write Configuration Register%s" % dutInst)
 
         @instance
         def hostclkdriver():
             while True:
-                hostmanagement_interface.clk.next = \
-                    not hostmanagement_interface.clk
+                hostintf.clk.next = \
+                    not hostintf.clk
                 yield delay(5)
 
         def clkwait(count=1):
             while count:
-                yield hostmanagement_interface.clk.posedge
+                yield hostintf.clk.posedge
                 count -= 1
 
         @instance
         def testlogic():
             yield clkwait(count=10)
-            yield hostmanagement_interface.writeconfig(0x239, 0x12345678)
+            yield hostintf.writeconfig(0x239, 0x12345678)
             yield clkwait(count=4)
-            yield hostmanagement_interface.readconfig(0x239)
-            assert hostmanagement_interface.rddata[32:] == intbv(0x12345678)
+            yield hostintf.readconfig(0x239)
+            assert hostintf.rddata[32:] == intbv(0x12345678)
 
         return testlogic, hostclkdriver, dutInst
 
@@ -48,33 +48,32 @@ def test_rwaddrtable():
 
     @block
     def test():
-        hostmanagement_interface = HostManagementInterface()
-        mdio_interface = MDIOInterface()
+        hostintf = HostManagementInterface()
+        mdiointf = MDIOInterface()
         reset = ResetSignal(1, active=0, async=True)
-        dutInst = management(hostmanagement_interface, mdio_interface, reset)
+        dutInst = management(hostintf, mdiointf, reset)
         print("Testing Read/Write Address Table%s" % dutInst)
 
         @instance
         def hostclkdriver():
             while True:
-                hostmanagement_interface.clk.next = \
-                    not hostmanagement_interface.clk
+                hostintf.clk.next = not hostintf.clk
                 yield delay(5)
 
         def clkwait(count=1):
             while count:
-                yield hostmanagement_interface.clk.posedge
+                yield hostintf.clk.posedge
                 count -= 1
 
         @instance
         def testlogic():
             yield clkwait(count=10)
-            yield hostmanagement_interface.writeaddrtable(1, 0xAA22BB55FF22)
+            yield hostintf.writeaddrtable(1, 0xAA22BB55FF22)
             yield clkwait(count=4)
-            yield hostmanagement_interface.readaddrtable(1)
-            readaddr = hostmanagement_interface.rddata[32:]
-            yield hostmanagement_interface.clk.posedge
-            readaddr = readaddr | (hostmanagement_interface.rddata[16:] << 32)
+            yield hostintf.readaddrtable(1)
+            readaddr = hostintf.rddata[32:]
+            yield hostintf.clk.posedge
+            readaddr = readaddr | (hostintf.rddata[16:] << 32)
             assert readaddr == 0xAA22BB55FF22
 
         return testlogic, hostclkdriver, dutInst
@@ -89,35 +88,35 @@ def test_mdioclkgen():
 
     @block
     def test():
-        hostmanagement_interface = HostManagementInterface()
-        mdio_interface = MDIOInterface()
+        hostintf = HostManagementInterface()
+        mdiointf = MDIOInterface()
         reset = ResetSignal(1, active=0, async=True)
-        dutInst = management(hostmanagement_interface, mdio_interface, reset)
+        dutInst = management(hostintf, mdiointf, reset)
         print("Testing MDIO Clk Generator %s" % dutInst)
 
         @instance
         def hostclkdriver():
             while True:
-                hostmanagement_interface.clk.next = \
-                    not hostmanagement_interface.clk
+                hostintf.clk.next = \
+                    not hostintf.clk
                 yield delay(5)
 
         def clkwait(count=1):
             while count:
-                yield hostmanagement_interface.clk.posedge
+                yield hostintf.clk.posedge
                 count -= 1
 
         @instance
         def testlogic():
             yield clkwait(count=20)
-            yield hostmanagement_interface.writeconfig(0x340, 0x00000002)
-            yield mdio_interface.mdc.posedge
+            yield hostintf.writeconfig(0x340, 0x00000002)
+            yield mdiointf.mdc.posedge
             time_mdc = now()
-            yield mdio_interface.mdc.posedge
+            yield mdiointf.mdc.posedge
             time_mdc = now() - time_mdc
-            yield hostmanagement_interface.clk.posedge
+            yield hostintf.clk.posedge
             time_hostclk = now()
-            yield hostmanagement_interface.clk.posedge
+            yield hostintf.clk.posedge
             time_hostclk = now() - time_hostclk
             assert time_hostclk == time_mdc / 6
 
@@ -134,39 +133,39 @@ def test_mdiowrite():
     @block
     def test():
 
-        hostmanagement_interface = HostManagementInterface()
-        mdio_interface = MDIOInterface()
+        hostintf = HostManagementInterface()
+        mdiointf = MDIOInterface()
         reset = ResetSignal(1, active=0, async=True)
-        dutInst = management(hostmanagement_interface, mdio_interface, reset)
+        dutInst = management(hostintf, mdiointf, reset)
         print("Testing MDIO Write Operation %s" % dutInst)
 
         @instance
         def hostclkdriver():
             while True:
-                hostmanagement_interface.clk.next = \
-                    not hostmanagement_interface.clk
+                hostintf.clk.next = \
+                    not hostintf.clk
                 yield delay(5)
 
         def clkwait(count=1):
             while count:
-                yield hostmanagement_interface.clk.posedge
+                yield hostintf.clk.posedge
                 count -= 1
 
         @instance
         def testlogic():
             yield clkwait(count=10)  # mdio enable, clkdiv =2+1*2=6
-            yield hostmanagement_interface.writeconfig(0x340, 0x00000022)
-            yield mdio_interface.mdc.posedge
-            yield hostmanagement_interface.\
+            yield hostintf.writeconfig(0x340, 0x00000022)
+            yield mdiointf.mdc.posedge
+            yield hostintf.\
                 mdiowriteop(intbv(0b01), intbv(0b1001100000),
                             intbv(0xABCD), block=False)
-            yield mdio_interface.out.negedge
+            yield mdiointf.out.negedge
             wrindex = 32
             wrdata = intbv(0)[32:]
             while wrindex >= 0:
-                wrdata[wrindex] = mdio_interface.out
+                wrdata[wrindex] = mdiointf.out
                 wrindex -= 1
-                yield mdio_interface.mdc.posedge
+                yield mdiointf.mdc.posedge
             assert wrdata[32:] == 0x5982ABCD
 
         return testlogic, hostclkdriver, dutInst
@@ -182,47 +181,47 @@ def test_mdioread():
     @block
     def test():
 
-        hostmanagement_interface = HostManagementInterface()
-        mdio_interface = MDIOInterface()
+        hostintf = HostManagementInterface()
+        mdiointf = MDIOInterface()
         reset = ResetSignal(1, active=0, async=True)
-        dutInst = management(hostmanagement_interface, mdio_interface, reset)
+        dutInst = management(hostintf, mdiointf, reset)
         print("Testing MDIO Write Operation %s" % dutInst)
 
         @instance
         def hostclkdriver():
             while True:
-                hostmanagement_interface.clk.next = \
-                    not hostmanagement_interface.clk
+                hostintf.clk.next = \
+                    not hostintf.clk
                 yield delay(5)
 
         def clkwait(count=1):
             while count:
-                yield hostmanagement_interface.clk.posedge
+                yield hostintf.clk.posedge
                 count -= 1
 
         @instance
         def testlogic():
             yield clkwait(count=10)  # mdio enable, clkdiv =2+1*2=6
-            yield hostmanagement_interface.writeconfig(0x340, 0x00000022)
-            yield mdio_interface.mdc.posedge
-            yield hostmanagement_interface.\
+            yield hostintf.writeconfig(0x340, 0x00000022)
+            yield mdiointf.mdc.posedge
+            yield hostintf.\
                 mdioreadop(intbv(0b10), intbv(0b1001100000), block=False)
-            yield mdio_interface.out.negedge
+            yield mdiointf.out.negedge
             wrindex = 32
             wrdata = intbv(0)[32:]
             while wrindex >= 18:
-                wrdata[wrindex] = mdio_interface.out
+                wrdata[wrindex] = mdiointf.out
                 wrindex -= 1
-                yield mdio_interface.mdc.posedge
+                yield mdiointf.mdc.posedge
             assert wrdata[32:18] == 0x1A60
-            mdio_interface.inn.next = 0
+            mdiointf.inn.next = 0
             rdindex = 15
             while rdindex >= 0:
-                yield mdio_interface.mdc.posedge
-                mdio_interface.inn.next = not mdio_interface.inn
+                yield mdiointf.mdc.posedge
+                mdiointf.inn.next = not mdiointf.inn
                 rdindex -= 1
-            yield hostmanagement_interface.miimrdy.posedge
-            assert hostmanagement_interface.rddata[16:] == 0x5555
+            yield hostintf.miimrdy.posedge
+            assert hostintf.rddata[16:] == 0x5555
 
         return testlogic, hostclkdriver, dutInst
 
@@ -236,23 +235,26 @@ def test_convertible():
 
     @block
     def test():
-        hostmanagement_interface = HostManagementInterface()
-        mdio_interface = MDIOInterface()
+        hostintf = HostManagementInterface()
+        mdiointf = MDIOInterface()
         reset = ResetSignal(1, active=0, async=True)
-        dutInst = management(hostmanagement_interface, mdio_interface, reset)
+        dutInst = management(hostintf, mdiointf, reset)
         print("Testing Convertibility %s" % dutInst)
 
         @instance
         def hostclkdriver():
+            hostintf.clk.next = 0
             while True:
-                hostmanagement_interface.clk.next = \
-                    not hostmanagement_interface.clk
                 yield delay(5)
+                hostintf.clk.next = not hostintf.clk
 
         @instance
         def testlogic():
+            reset.next = 0
+            yield delay(15)
+            reset.next = 1
             yield delay(20)
-            print("Converted!")
+            print("Converted! %d" % now())
             raise StopSimulation
 
         return dutInst, testlogic, hostclkdriver

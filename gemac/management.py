@@ -1,56 +1,74 @@
-from myhdl import block, Signal, intbv, always_seq, concat
+# -*- coding: utf-8 -*-
 
+from myhdl import block, Signal, intbv, always_seq, concat
 
 rx0, rx1, tx, flow, managementreg, ucast0, \
     ucast1, addrtable0, addrtable1, addrfiltermode, reserved = range(11)
+""" Indexing of configuration Registers
+"""
 
 
 class mdioData:
+    """ Collection of Signals required for MDIO transaction."""
     def __init__(self):
-        self.hostclk_count = Signal(intbv(0)[5:])  # Used to drive mdc
+        self.hostclk_count = Signal(intbv(0)[5:])
+        """ Used To drive mdc from hostclk. """
+
         self.wrdata = Signal(intbv(0)[32:])
         self.rddata = Signal(intbv(0)[16:])
-        self.rdindex = Signal(intbv(17, min=0, max=18))  # in index during rdop
+        """ Used to store data to be read/write from the host interface. """
+
+        self.rdindex = Signal(intbv(17, min=0, max=18))
         self.wrindex = Signal(intbv(64, min=0, max=65))
+        """ Used for indexing the MDIO transactoins. """
+
         self.wrdone = Signal(bool(0))
         self.done = Signal(bool(0))
-
-"""
-Management Data - Input Output Interface.
-
-hostClk - Reference Clk for Management/Configuration Operations. >10MHz
-hostOpcode (2 Bits) - Define Operation for MDIO Interface. Bit 1 also
-    used as control signal for configuration data transfer.
-hostAddr (10 Bits) - Address of Register to be accessed. According to
-    Table 8.2, Page 27, Xilinx UG 144 doc.
-hostWriteData (32 bits) - Data write.
-hostReadData (32 bits) - Data read.
-hostMIIM_sel - Set by Host. When High MDIO interface Accessed,
-    Else Configuration registers.
-hostReq - Set by Host to Indicate ongoing MDIO transaction.
-hostMIIM_rdy - Set by MDIO Interface to indicate ready for new transaction.
-
-mdc - Management Clock: programmable frequency derived from host_clk.
-mdioIn - Input data signal from PHY for its configuration and
-    status.(TriStateBuffer Connected)
-mdioOut - Output data signal from PHY for its configuration and
-    status.(TriStateBuffer Connected)
-mdioTri - TriState Control for Signals - Low Indicating mdioOut to be
-    asserted to the MDIO bus.
-
-"""
+        """ Used to Signal completion of MDIO transactions. """
 
 
 @block
 def management(hostintf, mdiointf, reset):
+    """ Management Block.
 
+    Responsible for host interaction for read/write of configuration registers,
+    Address Table and conversion of Host transactions to MDIO MII transactions.
+
+    Args:
+        hostintf - Instance of 'HostManagementInterface' class in interfaces.
+        mdiointf - Instance of 'MDIOInterface' class in interfaces.
+        reset: Asynchronous reset Signal from Host
+
+    Note:
+        Designed according to usage described in Xilinx User Guide
+        144(1-GEMAC), Pg 77-89.
+
+    """
     configregisters = [Signal(intbv(0)[32:]) for _ in range(10)]
+    """List of 10 32-bits wide Configuration Registers."""
+
     addresstable = [Signal(intbv(0)[48:]) for _ in range(4)]
+    """List of 4 48-bits wide MAC Addresses to be used by Address Filter."""
+
     addrtableread = Signal(bool(0))
+    """Signal used for address table read operation."""
+
     addrtablelocation = Signal(intbv(0)[2:])
+    """Sampled value of address table location while accessing it."""
+
     mdiodata = mdioData()
+    """Collection of Signals used for performing MDIO operations."""
 
     def getregindex(addr):
+        """Task/Function to get index of configuration registers.
+
+        Args:
+            addr (10 bits) - The register address.
+
+        Returns:
+            int: Configuration Register index.
+
+        """
         if addr >= 0x200 and addr <= 0x23F:
             return rx0
         elif addr >= 0x240 and addr <= 0x27F:
@@ -76,7 +94,12 @@ def management(hostintf, mdiointf, reset):
 
     @always_seq(hostintf.clk.posedge, reset=reset)
     def readData():
+        """Process block to drive 'hostintf.rddata'
 
+        Drives rddata in case of access of Configuration Registers/Address
+        Table or on completion of MDIO Read operation.
+
+        """
         if (not hostintf.miimsel) and hostintf.regaddress[9]:
             regindex = getregindex(hostintf.regaddress)
 
@@ -99,12 +122,12 @@ def management(hostintf, mdiointf, reset):
 
     @always_seq(hostintf.clk.posedge, reset=reset)
     def writeConfig():
-
+        """Process to write into configuration registers and address table."""
         if (not hostintf.miimsel) and hostintf.regaddress[9] and \
                 (not hostintf.opcode[1]):
             regindex = getregindex(hostintf.regaddress)
 
-            # Config Registers Write
+            # WriteConfig
             if regindex != reserved:
                 configregisters[regindex].next = hostintf.wrdata
 
@@ -115,6 +138,7 @@ def management(hostintf, mdiointf, reset):
 
     @always_seq(hostintf.clk.posedge, reset=reset)
     def mdcdriver():
+        """Process to drive 'mdiointf.mdc' from 'hostintf.clk'."""
         clkDiv = configregisters[managementreg][5:]  # + 1 * 2
         if mdiodata.hostclk_count == clkDiv:
             mdiointf.mdc.next = not mdiointf.mdc
@@ -124,6 +148,7 @@ def management(hostintf, mdiointf, reset):
 
     @always_seq(hostintf.clk.posedge, reset=reset)
     def mdioinitiate():
+        """Process to initiate and terminate MDIO operation."""
         if hostintf.hostreq and hostintf.miimsel and \
                 hostintf.miimrdy:
             hostintf.miimrdy.next = False
@@ -140,6 +165,13 @@ def management(hostintf, mdiointf, reset):
 
     @always_seq(mdiointf.mdc.posedge, reset=reset)
     def mdiooperation():
+        """Process to perform the MDIO Read/Write Operation.
+
+        Drives the 'MDIOInterface' signals in accordance with the operation
+        to be performed (read/write). Basically converts parallel data to
+        serial data over 'mdiointf.out' (write) and vice-versa (read).
+
+        """
         mdioenable = configregisters[managementreg][5]
         if (not hostintf.miimrdy) and mdioenable:
             if not mdiointf.tri:
