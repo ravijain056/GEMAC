@@ -39,25 +39,25 @@ def management(hostintf, mdiointf, reset):
         mdiointf - Instance of 'MDIOInterface' class in interfaces.
         reset: Asynchronous reset Signal from Host
 
+    Attributes:
+        configregisters - List of 10 32-bits wide Configuration Registers.
+        addresstable - List of 4 48-bits wide MAC Addresses to be used by
+            Address Filter.
+        addrtableread - Signal used for address table read operation.
+        addrtablelocation - Sampled value of address table location while
+            accessing it.
+        mdiodata - Collection of Signals used for performing MDIO operations.
+
     Note:
         Designed according to usage described in Xilinx User Guide
         144(1-GEMAC), Pg 77-89.
 
     """
     configregisters = [Signal(intbv(0)[32:]) for _ in range(10)]
-    """List of 10 32-bits wide Configuration Registers."""
-
     addresstable = [Signal(intbv(0)[48:]) for _ in range(4)]
-    """List of 4 48-bits wide MAC Addresses to be used by Address Filter."""
-
     addrtableread = Signal(bool(0))
-    """Signal used for address table read operation."""
-
     addrtablelocation = Signal(intbv(0)[2:])
-    """Sampled value of address table location while accessing it."""
-
     mdiodata = mdioData()
-    """Collection of Signals used for performing MDIO operations."""
 
     def getregindex(addr):
         """Task/Function to get index of configuration registers.
@@ -149,8 +149,7 @@ def management(hostintf, mdiointf, reset):
     @always_seq(hostintf.clk.posedge, reset=reset)
     def mdioinitiate():
         """Process to initiate and terminate MDIO operation."""
-        if hostintf.hostreq and hostintf.miimsel and \
-                hostintf.miimrdy:
+        if hostintf.hostreq and hostintf.miimsel and hostintf.miimrdy:
             hostintf.miimrdy.next = False
             mdiointf.tri.next = False
             wrdata = concat(intbv(0b01)[2:], hostintf.opcode[2:],
