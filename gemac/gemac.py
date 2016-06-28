@@ -1,38 +1,30 @@
-from myhdl import block, Signal, intbv, instances
-from .client import client
-from .txEngine import txEngine
+from myhdl import block, Signal, intbv
+from .txEngine import txengine
 from .rxEngine import rxEngine
 from .gmii import gmii
 from .flowControl import flowControl
 from .management import management
+from .intrafaces import RxGMII_Interface, TxFlowInterface, TxGMII_Interface
+
+rx0, rx1, tx, flow, managementreg, ucast0, \
+    ucast1, addrtable0, addrtable1, addrfiltermode, reserved = range(11)
+""" Indexing of configuration Registers"""
 
 
 @block
-def gemac(txclient_interface, rxclient_interface, phy_interface,
-          flow_interface, hostmanagement_interface, mdio_interface, reset):
+def gemac(clientintf, phyintf, flowintf, hostintf, mdiointf, reset):
+    txgmii_intf = TxGMII_Interface()
+    rxgmii_intf = RxGMII_Interface()
+    txflowintf = TxFlowInterface()
+    configregs = [Signal(intbv(0)[32:]) for _ in range(10)]
+    addrtable = [Signal(intbv(0)[48:]) for _ in range(4)]
 
-    txpause = Signal(bool(0))  # Transmit Pause Frame
-    rxder = Signal(bool(0))  # Receive Data Error
-    txd2engine = Signal(intbv(0)[8:])
-    txd2gmii = Signal(intbv(0)[8:])
-    rxd2engine = Signal(intbv(0)[8:])
-    rxd2client = Signal(intbv(0)[8:])
-    sampled_pauseval = Signal(intbv(0)[16:])
+    txengineinst = txengine(clientintf.tx, txgmii_intf, txflowintf,
+                            configregs[tx], reset)
+    rxengineinst = rxEngine(clientintf.rx, rxgmii_intf, reset)
+    flowCntrlInst = flowControl(flowintf, txflowintf, reset)
+    gmiiInst = gmii(txgmii_intf, rxgmii_intf, phyintf, reset)
+    managementinst = management(hostintf, mdiointf, configregs,
+                                addrtable, reset)
 
-    clientInst = client(txclient_interface, txd2engine,
-                        rxclient_interface, rxd2client, rxder)
-
-    txEngineInst = txEngine(txclient_interface.gtxclk, txd2engine, txd2gmii,
-                            txpause, sampled_pauseval)
-
-    rxEngineInst = rxEngine(phy_interface.rxclk, rxd2client,
-                            rxd2engine, rxder)
-
-    flowControlInst = flowControl(flow_interface, txpause, sampled_pauseval)
-
-    gmiiInst = gmii(phy_interface, txd2gmii, rxd2engine,
-                    txclient_interface.gtxclk)
-
-    mdioInst = management(hostmanagement_interface, mdio_interface, reset)
-
-    return instances()
+    return txengineinst, rxengineinst, flowCntrlInst, gmiiInst, managementinst
