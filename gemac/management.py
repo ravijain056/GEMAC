@@ -18,7 +18,7 @@ class mdioData:
         """ Used to store data to be read/write from the host interface. """
 
         self.rdindex = Signal(intbv(17, min=0, max=18))
-        self.wrindex = Signal(intbv(64, min=0, max=65))
+        self.wrindex = Signal(intbv(62, min=0, max=63))
         """ Used for indexing the MDIO transactoins. """
 
         self.wrdone = Signal(bool(0))

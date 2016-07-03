@@ -243,8 +243,8 @@ class TxFIFOClientInterface:
         ack (1 bit) - Acknowledge bit driven by engine to indicate start
             transmitting frames.
         underrun (1 bit) - Driven by Client to stop transmitting current frame.
-        collision (1 bit) - 
-        retrasmit (1 bit) - 
+        collision (1 bit) -
+        retrasmit (1 bit) -
     """
     def __init__(self):
         # Client Transmitter Interface
@@ -258,6 +258,14 @@ class TxFIFOClientInterface:
         self.retransmit = Signal(bool(0))
 
     def tx(self, datastream):
+        """ Transmit Operation
+
+        Perform transmit operation over client interface.
+
+        Args:
+            datastream - list of 8-bit values to be transmitted.
+
+        """
         self.data.next = datastream[0]
         self.dv.next = True
         yield self.ack.posedge
