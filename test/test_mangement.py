@@ -1,20 +1,28 @@
 from gemac.interfaces import HostManagementInterface, MDIOInterface
 from gemac.management import management
 from myhdl import instance, delay, block, intbv, now, StopSimulation, \
-    ResetSignal
+    ResetSignal, Signal
 from myhdl.conversion import verify
+import pytest
 
 
-def test_rwconfig():
+def clkwait(clk, count=1):
+    while count:
+        yield clk.posedge
+        count -= 1
+
+
+@pytest.fixture()
+def setuptb():
+    hostintf = HostManagementInterface()
+    mdiointf = MDIOInterface()
+    configregs = [Signal(intbv(0)[32:]) for _ in range(10)]
+    addrtable = [Signal(intbv(0)[48:]) for _ in range(4)]
+    reset = ResetSignal(1, active=0, async=True)
 
     @block
-    def test():
-
-        hostintf = HostManagementInterface()
-        mdiointf = MDIOInterface()
-        reset = ResetSignal(1, active=0, async=True)
-        dutInst = management(hostintf, mdiointf, reset)
-        print("Testing Read/Write Configuration Register%s" % dutInst)
+    def testbench():
+        dutinst = management(hostintf, mdiointf, configregs, addrtable, reset)
 
         @instance
         def hostclkdriver():
@@ -23,20 +31,35 @@ def test_rwconfig():
                     not hostintf.clk
                 yield delay(5)
 
-        def clkwait(count=1):
-            while count:
-                yield hostintf.clk.posedge
-                count -= 1
+        @instance
+        def resetonstart():
+            reset.next = 0
+            yield clkwait(hostintf.clk, count=2)
+            reset.next = 1
+            yield clkwait(hostintf.clk, count=2)
+
+        return dutinst, hostclkdriver, resetonstart
+
+    return testbench, hostintf, mdiointf
+
+
+def test_rwconfig(setuptb):
+    tb, hostintf, mdiointf = setuptb
+
+    @block
+    def test():
+        tbinst = tb()
+        print("Testing Read/Write Configuration Register%s" % tbinst)
 
         @instance
-        def testlogic():
-            yield clkwait(count=10)
+        def tbstim():
+            yield clkwait(hostintf.clk, count=10)
             yield hostintf.writeconfig(0x239, 0x12345678)
-            yield clkwait(count=4)
+            yield clkwait(hostintf.clk, count=4)
             yield hostintf.readconfig(0x239)
             assert hostintf.rddata[32:] == intbv(0x12345678)
 
-        return testlogic, hostclkdriver, dutInst
+        return tbstim, tbinst
 
     testInst = test()
     testInst.config_sim(trace=False)
@@ -44,71 +67,44 @@ def test_rwconfig():
     testInst.quit_sim()
 
 
-def test_rwaddrtable():
+def test_rwaddrtable(setuptb):
+    tb, hostintf, mdiointf = setuptb
 
     @block
     def test():
-        hostintf = HostManagementInterface()
-        mdiointf = MDIOInterface()
-        reset = ResetSignal(1, active=0, async=True)
-        dutInst = management(hostintf, mdiointf, reset)
-        print("Testing Read/Write Address Table%s" % dutInst)
+        tbinst = tb()
+        print("Testing Read/Write Address Table%s" % tbinst)
 
         @instance
-        def hostclkdriver():
-            while True:
-                hostintf.clk.next = not hostintf.clk
-                yield delay(5)
-
-        def clkwait(count=1):
-            while count:
-                yield hostintf.clk.posedge
-                count -= 1
-
-        @instance
-        def testlogic():
-            yield clkwait(count=10)
+        def tbstim():
+            yield clkwait(hostintf.clk, count=10)
             yield hostintf.writeaddrtable(1, 0xAA22BB55FF22)
-            yield clkwait(count=4)
+            yield clkwait(hostintf.clk, count=4)
             yield hostintf.readaddrtable(1)
             readaddr = hostintf.rddata[32:]
             yield hostintf.clk.posedge
             readaddr = readaddr | (hostintf.rddata[16:] << 32)
             assert readaddr == 0xAA22BB55FF22
 
-        return testlogic, hostclkdriver, dutInst
+        return tbstim, tbinst
 
     testInst = test()
-    testInst.config_sim(trace=True)
+    testInst.config_sim(trace=False)
     testInst.run_sim(duration=500)
     testInst.quit_sim()
 
 
-def test_mdioclkgen():
+def test_mdioclkgen(setuptb):
+    tb, hostintf, mdiointf = setuptb
 
     @block
     def test():
-        hostintf = HostManagementInterface()
-        mdiointf = MDIOInterface()
-        reset = ResetSignal(1, active=0, async=True)
-        dutInst = management(hostintf, mdiointf, reset)
-        print("Testing MDIO Clk Generator %s" % dutInst)
+        tbinst = tb()
+        print("Testing MDIO Clk Generator %s" % tbinst)
 
         @instance
-        def hostclkdriver():
-            while True:
-                hostintf.clk.next = \
-                    not hostintf.clk
-                yield delay(5)
-
-        def clkwait(count=1):
-            while count:
-                yield hostintf.clk.posedge
-                count -= 1
-
-        @instance
-        def testlogic():
-            yield clkwait(count=20)
+        def tbstim():
+            yield clkwait(hostintf.clk, count=20)
             yield hostintf.writeconfig(0x340, 0x00000002)
             yield mdiointf.mdc.posedge
             time_mdc = now()
@@ -120,7 +116,7 @@ def test_mdioclkgen():
             time_hostclk = now() - time_hostclk
             assert time_hostclk == time_mdc / 6
 
-        return testlogic, hostclkdriver, dutInst
+        return tbstim, tbinst
 
     testInst = test()
     testInst.config_sim(trace=False)
@@ -128,37 +124,22 @@ def test_mdioclkgen():
     testInst.quit_sim()
 
 
-def test_mdiowrite():
+def test_mdiowrite(setuptb):
+    tb, hostintf, mdiointf = setuptb
 
     @block
     def test():
-
-        hostintf = HostManagementInterface()
-        mdiointf = MDIOInterface()
-        reset = ResetSignal(1, active=0, async=True)
-        dutInst = management(hostintf, mdiointf, reset)
-        print("Testing MDIO Write Operation %s" % dutInst)
+        tbinst = tb()
+        print("Testing MDIO Write Operation %s" % tbinst)
 
         @instance
-        def hostclkdriver():
-            while True:
-                hostintf.clk.next = \
-                    not hostintf.clk
-                yield delay(5)
-
-        def clkwait(count=1):
-            while count:
-                yield hostintf.clk.posedge
-                count -= 1
-
-        @instance
-        def testlogic():
-            yield clkwait(count=10)  # mdio enable, clkdiv =2+1*2=6
+        def tbstim():
+            yield clkwait(hostintf.clk, count=10)
+            # mdio enable, clkdiv =2+1*2=6
             yield hostintf.writeconfig(0x340, 0x00000022)
             yield mdiointf.mdc.posedge
-            yield hostintf.\
-                mdiowriteop(intbv(0b01), intbv(0b1001100000),
-                            intbv(0xABCD), block=False)
+            yield hostintf.mdiowriteop(intbv(0b01), intbv(0b1001100000),
+                                       intbv(0xABCD), block=False)
             yield mdiointf.out.negedge
             wrindex = 32
             wrdata = intbv(0)[32:]
@@ -168,7 +149,7 @@ def test_mdiowrite():
                 yield mdiointf.mdc.posedge
             assert wrdata[32:] == 0x5982ABCD
 
-        return testlogic, hostclkdriver, dutInst
+        return tbstim, tbinst
 
     testInst = test()
     testInst.config_sim(trace=False)
@@ -176,36 +157,22 @@ def test_mdiowrite():
     testInst.quit_sim()
 
 
-def test_mdioread():
+def test_mdioread(setuptb):
+    tb, hostintf, mdiointf = setuptb
 
     @block
     def test():
-
-        hostintf = HostManagementInterface()
-        mdiointf = MDIOInterface()
-        reset = ResetSignal(1, active=0, async=True)
-        dutInst = management(hostintf, mdiointf, reset)
-        print("Testing MDIO Write Operation %s" % dutInst)
+        tbinst = tb()
+        print("Testing MDIO Write Operation %s" % tbinst)
 
         @instance
-        def hostclkdriver():
-            while True:
-                hostintf.clk.next = \
-                    not hostintf.clk
-                yield delay(5)
-
-        def clkwait(count=1):
-            while count:
-                yield hostintf.clk.posedge
-                count -= 1
-
-        @instance
-        def testlogic():
-            yield clkwait(count=10)  # mdio enable, clkdiv =2+1*2=6
+        def tbstim():
+            yield clkwait(hostintf.clk, count=10)
+            # mdio enable, clkdiv =2+1*2=6
             yield hostintf.writeconfig(0x340, 0x00000022)
             yield mdiointf.mdc.posedge
-            yield hostintf.\
-                mdioreadop(intbv(0b10), intbv(0b1001100000), block=False)
+            yield hostintf.mdioreadop(intbv(0b10), intbv(0b1001100000),
+                                      block=False)
             yield mdiointf.out.negedge
             wrindex = 32
             wrdata = intbv(0)[32:]
@@ -223,7 +190,7 @@ def test_mdioread():
             yield hostintf.miimrdy.posedge
             assert hostintf.rddata[16:] == 0x5555
 
-        return testlogic, hostclkdriver, dutInst
+        return tbstim, tbinst
 
     testInst = test()
     testInst.config_sim(trace=False)
@@ -237,8 +204,10 @@ def test_convertible():
     def test():
         hostintf = HostManagementInterface()
         mdiointf = MDIOInterface()
+        configregs = [Signal(intbv(0)[32:]) for _ in range(10)]
+        addrtable = [Signal(intbv(0)[48:]) for _ in range(4)]
         reset = ResetSignal(1, active=0, async=True)
-        dutInst = management(hostintf, mdiointf, reset)
+        dutInst = management(hostintf, mdiointf, configregs, addrtable, reset)
         print("Testing Convertibility %s" % dutInst)
 
         @instance

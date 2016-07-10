@@ -2,7 +2,7 @@ from myhdl import block, instances
 
 
 @block
-def gmii(phy_interface, txd2gmii, rxd2engine, gtxclk):
+def gmii(txgmii_intf, rxgmii_intf, phyintf, reset):
 
     """
     *GMII - PHY Interface for 1 - Gigabit Ethernet operation*

@@ -4,8 +4,7 @@ from myhdl import block, Signal, intbv, always_seq, concat
 
 rx0, rx1, tx, flow, managementreg, ucast0, \
     ucast1, addrtable0, addrtable1, addrfiltermode, reserved = range(11)
-""" Indexing of configuration Registers
-"""
+""" Indexing of configuration Registers"""
 
 
 class mdioData:
@@ -19,7 +18,7 @@ class mdioData:
         """ Used to store data to be read/write from the host interface. """
 
         self.rdindex = Signal(intbv(17, min=0, max=18))
-        self.wrindex = Signal(intbv(64, min=0, max=65))
+        self.wrindex = Signal(intbv(62, min=0, max=63))
         """ Used for indexing the MDIO transactoins. """
 
         self.wrdone = Signal(bool(0))
@@ -28,7 +27,7 @@ class mdioData:
 
 
 @block
-def management(hostintf, mdiointf, reset):
+def management(hostintf, mdiointf, configregs, addrtable, reset):
     """ Management Block.
 
     Responsible for host interaction for read/write of configuration registers,
@@ -37,12 +36,12 @@ def management(hostintf, mdiointf, reset):
     Args:
         hostintf - Instance of 'HostManagementInterface' class in interfaces.
         mdiointf - Instance of 'MDIOInterface' class in interfaces.
+        configregs - List of 10 32-bits wide Configuration Registers.
+        addrtable - List of 4 48-bits wide MAC Addresses to be used by
+            Address Filter.
         reset: Asynchronous reset Signal from Host
 
     Attributes:
-        configregisters - List of 10 32-bits wide Configuration Registers.
-        addresstable - List of 4 48-bits wide MAC Addresses to be used by
-            Address Filter.
         addrtableread - Signal used for address table read operation.
         addrtablelocation - Sampled value of address table location while
             accessing it.
@@ -53,8 +52,6 @@ def management(hostintf, mdiointf, reset):
         144(1-GEMAC), Pg 77-89.
 
     """
-    configregisters = [Signal(intbv(0)[32:]) for _ in range(10)]
-    addresstable = [Signal(intbv(0)[48:]) for _ in range(4)]
     addrtableread = Signal(bool(0))
     addrtablelocation = Signal(intbv(0)[2:])
     mdiodata = mdioData()
@@ -104,13 +101,13 @@ def management(hostintf, mdiointf, reset):
             regindex = getregindex(hostintf.regaddress)
 
             if regindex != reserved and hostintf.opcode[1]:  # ReadConfig
-                hostintf.rddata.next = configregisters[regindex]
+                hostintf.rddata.next = configregs[regindex]
 
             if regindex == addrtable1 and not hostintf.opcode[1] and \
                     hostintf.wrdata[23]:  # Address Table Read 0
                 loc = hostintf.wrdata[18:16]
                 addrtablelocation.next = loc
-                hostintf.rddata.next = addresstable[loc][32:0]
+                hostintf.rddata.next = addrtable[loc][32:0]
                 addrtableread.next = True
 
         if not hostintf.miimrdy and mdiodata.done:  # MDIO Read
@@ -118,7 +115,7 @@ def management(hostintf, mdiointf, reset):
 
         if addrtableread:  # Address Table Read 1
             addrtableread.next = False
-            hostintf.rddata.next = addresstable[addrtablelocation][48:32]
+            hostintf.rddata.next = addrtable[addrtablelocation][48:32]
 
     @always_seq(hostintf.clk.posedge, reset=reset)
     def writeConfig():
@@ -129,17 +126,17 @@ def management(hostintf, mdiointf, reset):
 
             # WriteConfig
             if regindex != reserved:
-                configregisters[regindex].next = hostintf.wrdata
+                configregs[regindex].next = hostintf.wrdata
 
             # Address Table Write
             if regindex == addrtable1 and not hostintf.wrdata[23]:
-                addresstable[hostintf.wrdata[18:16]].next = \
-                    (hostintf.wrdata[16:0] << 32) | configregisters[addrtable0]
+                addrtable[hostintf.wrdata[18:16]].next = \
+                    (hostintf.wrdata[16:0] << 32) | configregs[addrtable0]
 
     @always_seq(hostintf.clk.posedge, reset=reset)
     def mdcdriver():
         """Process to drive 'mdiointf.mdc' from 'hostintf.clk'."""
-        clkDiv = configregisters[managementreg][5:]  # + 1 * 2
+        clkDiv = configregs[managementreg][5:]  # + 1 * 2
         if mdiodata.hostclk_count == clkDiv:
             mdiointf.mdc.next = not mdiointf.mdc
             mdiodata.hostclk_count.next = 0
@@ -171,7 +168,7 @@ def management(hostintf, mdiointf, reset):
         serial data over 'mdiointf.out' (write) and vice-versa (read).
 
         """
-        mdioenable = configregisters[managementreg][5]
+        mdioenable = configregs[managementreg][5]
         if (not hostintf.miimrdy) and mdioenable:
             if not mdiointf.tri:
                 mdiointf.out.next = 1 if mdiodata.wrindex > 31 \

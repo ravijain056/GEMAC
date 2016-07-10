@@ -212,13 +212,11 @@ class PHYInterface:
 
 class RxFIFOClientInterface:
     def __init__(self):
-        self.rxclk = Signal(bool(0))
-        self.reset = ResetSignal(0, active=0, async=False)
-        self.clkenable = Signal(bool(0))
-        self.rxd = Signal(intbv(0)[8:])  # Receive Data
-        self.rxdv = Signal(bool(0))  # Receive Data Valid
-        self.rxgood = Signal(bool(0))  # Receive Good Frame
-        self.rxbad = Signal(bool(0))  # Receive Bad Frame
+        self.clk = Signal(bool(0))
+        self.data = Signal(intbv(0)[8:])  # Receive Data
+        self.dv = Signal(bool(0))  # Receive Data Valid
+        self.good = Signal(bool(0))  # Receive Good Frame
+        self.bad = Signal(bool(0))  # Receive Bad Frame
         self.overflow = Signal(bool(0))
 
 
@@ -235,16 +233,48 @@ class RxLocalLinkFIFOInterface:
 
 
 class TxFIFOClientInterface:
+    """ Transmit Engine - CLient FIFO Interface
+
+    Attributes:
+        clk (1 bit) - Clock from client used for all transmit operations.
+        data (8 bits) - Transmit Data
+        dv (1 bit) - Data valid bit
+        ifgdelay (16 bits) - InterFrameGap Delay between two Transmit Frames.
+        ack (1 bit) - Acknowledge bit driven by engine to indicate start
+            transmitting frames.
+        underrun (1 bit) - Driven by Client to stop transmitting current frame.
+        collision (1 bit) -
+        retrasmit (1 bit) -
+    """
     def __init__(self):
         # Client Transmitter Interface
-        self.gtxclk = Signal(bool(0))
-        self.txd = Signal(intbv(0)[8:])  # Transmit Data
-        self.txdv = Signal(bool(0))  # Transmit Data Valid
-        self.txifgdelay = Signal(intbv(0)[16:])  # Transmit InterFrameGap Delay
-        self.txack = Signal(bool(0))  # Transmit Acknowledge
-        self.txunderrun = Signal(bool(0))  # Transmit Underrun
-        self.txcollision = Signal(bool(0))
-        self.txretransmit = Signal(bool(0))
+        self.clk = Signal(bool(0))
+        self.data = Signal(intbv(0)[8:])  # Transmit Data
+        self.dv = Signal(bool(0))  # Transmit Data Valid
+        self.ifgdelay = Signal(intbv(0)[16:])  # Transmit InterFrameGap Delay
+        self.ack = Signal(bool(0))  # Transmit Acknowledge
+        self.underrun = Signal(bool(0))  # Transmit Underrun
+        self.collision = Signal(bool(0))
+        self.retransmit = Signal(bool(0))
+
+    def tx(self, datastream):
+        """ Transmit Operation
+
+        Perform transmit operation over client interface.
+
+        Args:
+            datastream - list of 8-bit values to be transmitted.
+
+        """
+        self.data.next = datastream[0]
+        self.dv.next = True
+        yield self.ack.posedge
+        for i in range(1, len(datastream)):
+            yield self.clk.posedge
+            self.data.next = datastream[i]
+        yield self.clk.posedge
+        self.dv.next = False
+        yield self.clk.posedge
 
 
 class TxLocalLinkFIFOInterface:
@@ -258,3 +288,9 @@ class TxLocalLinkFIFOInterface:
         self.dst_rdy = Signal(bool(0))  # Destination Ready
         self.fifostatus = Signal(intbv(0)[4:])
         self.overflow = Signal(bool(0))
+
+
+class ClientInterface:
+    def __init__(self):
+        self.rx = RxFIFOClientInterface()
+        self.tx = TxFIFOClientInterface()
