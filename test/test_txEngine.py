@@ -77,7 +77,7 @@ def test_inbandfcs(setuptb):
         def tbcheck():
             yield clkwait(txclientintf.clk, count=10)
             yield txclientintf.ack.posedge
-            yield txclientintf.clk.posedge
+            yield clkwait(txclientintf.clk, count=2)
             for i in range(len(datastream)):
                 yield txclientintf.clk.posedge
                 assert txgmii_intf.data == datastream[i]
@@ -104,6 +104,7 @@ def test_crc32(setuptb):
             txconfig.next = 0x10000000
             yield clkwait(txclientintf.clk, count=2)
             yield txclientintf.tx(datastream)
+            yield txclientintf.clk.posedge
             crc32 = 0
             for i in range(3, -1, -1):
                 yield txclientintf.clk.posedge
@@ -136,11 +137,11 @@ def test_preamble(setuptb):
 
         @instance
         def tbcheck():
-            yield clkwait(txclientintf.clk, count=14)
-            for _ in range(3):
-                assert txgmii_intf.data == 0xAA
+            yield clkwait(txclientintf.clk, count=16)
+            for _ in range(7):
+                assert txgmii_intf.data == 0x55
                 yield txclientintf.clk.posedge
-            assert txgmii_intf.data == 0xAB
+            assert txgmii_intf.data == 0xD5
 
         return tbinst, tbstim, tbcheck
 
@@ -226,7 +227,7 @@ def test_maxframesize(setuptb):
     @block
     def test():
         tbinst = tb()
-        print("Testing padding %s" % tbinst)
+        print("Testing Max Permitted Length Restriction %s" % tbinst)
 
         @instance
         def tbstim():
@@ -237,9 +238,14 @@ def test_maxframesize(setuptb):
 
         @instance
         def tbcheck():
-            yield clkwait(txclientintf.clk, count=20)
-            yield txgmii_intf.dv.negedge
-            assert txgmii_intf.err
+            yield clkwait(txclientintf.clk, count=10)
+            yield txgmii_intf.dv.posedge
+            erred = False
+            while(txgmii_intf.dv):
+                yield txclientintf.clk.posedge
+                if (txgmii_intf.err):
+                    erred = True
+            assert erred
 
         return tbinst, tbstim, tbcheck
 
@@ -256,7 +262,7 @@ def test_jumboframe(setuptb):
     @block
     def test():
         tbinst = tb()
-        print("Testing padding %s" % tbinst)
+        print("Testing Jumbo Frames %s" % tbinst)
 
         @instance
         def tbstim():
