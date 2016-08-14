@@ -108,7 +108,7 @@ def test_crc32(setuptb):
             for i in range(3, -1, -1):
                 yield txclientintf.clk.posedge
                 crc32 = (txgmii_intf.data << (i * 8)) | crc32
-            assert crc32 == 0x28A1C270
+            assert crc32 == 0x70C2A128
 
         return tbinst, tbstim
 

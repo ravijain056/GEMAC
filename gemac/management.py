@@ -133,6 +133,13 @@ def management(hostintf, mdiointf, configregs, addrtable, reset):
                 addrtable[hostintf.wrdata[18:16]].next = \
                     (hostintf.wrdata[16:0] << 32) | configregs[addrtable0]
 
+        # Reverting resets
+        if configregs[rx1][31]:
+            configregs[rx1].next = configregs[tx] & 0x7FFFFFFF
+        if configregs[tx][31]:
+            configregs[tx].next = configregs[tx] & 0x7FFFFFFF
+
+
     @always_seq(hostintf.clk.posedge, reset=reset)
     def mdcdriver():
         """Process to drive 'mdiointf.mdc' from 'hostintf.clk'."""
