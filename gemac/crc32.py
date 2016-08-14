@@ -92,7 +92,6 @@ def crc32(clk, clear, calc, data, crcout, reset):
 
     @always_seq(clk.posedge, reset)
     def crcfunc():
-        print(crcreg, crcout, data, " mine ")
         if clear:
             crcreg.next = 0xFFFFFFFF
         elif(calc):

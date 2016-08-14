@@ -42,8 +42,7 @@ def setuptb():
         @instance
         def hostclkdriver():
             while True:
-                txclientintf.clk.next = \
-                    not txclientintf.clk
+                txclientintf.clk.next = not txclientintf.clk
                 yield delay(5)
 
         @instance

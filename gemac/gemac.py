@@ -25,8 +25,9 @@ def gemac(clientintf, phyintf, flowintf, hostintf, mdiointf, reset):
     txengineinst = txengine(clientintf.tx, txgmii_intf, txflowintf,
                             configregs[tx], reset)
 
-    rxengineinst = rxengine(clientintf.rx, rxgmii_intf, configregs[rx0],
-                            configregs[rx1], addrtable, reset)
+    rxengineinst = rxengine(clientintf.rx, rxgmii_intf, rxflowintf, configregs[rx0],
+                            configregs[rx1], configregs[addrfiltermode],
+                            addrtable, reset)
 
     flowcntrlinst = flowcontrol(flowintf, txflowintf, rxflowintf,
                                 configregs[flow], reset)
