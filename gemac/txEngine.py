@@ -1,4 +1,4 @@
-from myhdl import block, always_seq, always_comb, Signal, intbv, enum,\
+from myhdl import block, always_seq, always_comb, Signal, intbv, enum, \
     ResetSignal
 from gemac.crc32 import crc32
 
@@ -117,7 +117,7 @@ def txengine(txclientintf, txgmii_intf, txflowintf, txconfig, sysreset):
                 jumboen = txconfig[30]
                 fcsen = txconfig[29]
                 vlanen = txconfig[27]
-                if curbyte > (1526 + vlanen*4) and not jumboen:
+                if curbyte > (1526 + vlanen * 4) and not jumboen:
                     state.next = txstate.ERROR
                 elif fcsen:
                     state.next = txstate.IDLE
@@ -131,19 +131,19 @@ def txengine(txclientintf, txgmii_intf, txflowintf, txconfig, sysreset):
                 state.next = txstate.CRC1
 
         elif state == txstate.CRC1:
-            txgmii_intf.data.next = crcout[32:24]
+            txgmii_intf.data.next = crcout[8:]
             state.next = txstate.CRC2
 
         elif state == txstate.CRC2:
-            txgmii_intf.data.next = crcout[24:16]
+            txgmii_intf.data.next = crcout[16:8]
             state.next = txstate.CRC3
 
         elif state == txstate.CRC3:
-            txgmii_intf.data.next = crcout[16:8]
+            txgmii_intf.data.next = crcout[24:16]
             state.next = txstate.CRC4
 
         elif state == txstate.CRC4:
-            txgmii_intf.data.next = crcout[8:]
+            txgmii_intf.data.next = crcout[32:24]
             state.next = txstate.IDLE
 
         elif state == txstate.ERROR:
