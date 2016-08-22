@@ -4,6 +4,19 @@ from myhdl._always_comb import always_comb
 
 @block
 def addrfilter(clk, rxdata, addr, go, match, reset):
+    """ Address Filter.
+
+    Matches the address appearing in 8-bit databus rxdata to addr in Big-endian format.
+
+    Args:
+        clk (1-bit Signal) - System clock.
+        rxdata (8-bits Signal) - Data Bus in which the address to be matched appears.
+        addr (48-bits Signal) - The Address to what the data has to be matched.
+        go (1-bit Signal) - Flag to signify the start of data on the bus.
+        match (1-bit Signal) - Is Flagged High when the address match occurs
+        reset (ResetSignal) - System Reset
+
+    """
 
     curbyte = Signal(intbv(0, min=0, max=8))
 

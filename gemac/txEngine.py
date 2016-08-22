@@ -165,17 +165,17 @@ def txengine(txclientintf, txgmii_intf, txflowintf, txconfig, sysreset):
             elif curbyte == 14:
                 data.next = mcastaddr[8:]
             elif curbyte == 15:
-                data.next = txflowintf.macaddr[8:]
-            elif curbyte == 16:
-                data.next = txflowintf.macaddr[16:8]
-            elif curbyte == 17:
-                data.next = txflowintf.macaddr[24:16]
-            elif curbyte == 18:
-                data.next = txflowintf.macaddr[32:24]
-            elif curbyte == 19:
-                data.next = txflowintf.macaddr[40:32]
-            elif curbyte == 20:
                 data.next = txflowintf.macaddr[48:40]
+            elif curbyte == 16:
+                data.next = txflowintf.macaddr[40:32]
+            elif curbyte == 17:
+                data.next = txflowintf.macaddr[32:24]
+            elif curbyte == 18:
+                data.next = txflowintf.macaddr[24:16]
+            elif curbyte == 19:
+                data.next = txflowintf.macaddr[16:8]
+            elif curbyte == 20:
+                data.next = txflowintf.macaddr[8:]
             elif curbyte == 21:
                 data.next = 0x88  # MAC control Frame
             elif curbyte == 22:

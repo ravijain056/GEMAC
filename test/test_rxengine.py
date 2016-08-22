@@ -4,9 +4,7 @@ from myhdl.conversion import verify
 from gemac.intrafaces import RxGMII_Interface, RxFlowInterface
 from gemac.rxEngine import rxengine
 from gemac.interfaces import RxFIFOClientInterface
-from random import randrange
 import pytest
-
 
 datastream = [0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC, 0xDE, 0xF0,
               0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC, 0xDE, 0xF0,
@@ -44,7 +42,7 @@ def setuptb():
         @instance
         def hostclkdriver():
             while True:
-                rxclientintf.clk.next = not rxclientintf.clk
+                rxgmii_intf.clk.next = not rxgmii_intf.clk
                 yield delay(5)
 
         @instance
@@ -76,10 +74,10 @@ def test_convertible():
 
         @instance
         def hostclkdriver():
-            rxclientintf.clk.next = 0
+            rxgmii_intf.clk.next = 0
             while True:
                 yield delay(5)
-                rxclientintf.clk.next = not rxclientintf.clk
+                rxgmii_intf.clk.next = not rxgmii_intf.clk
 
         @instance
         def testlogic():
