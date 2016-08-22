@@ -21,11 +21,17 @@ Note: The install scripts under '/scripts/ci/' can be used to install MyHDL and 
 
 #Getting Started
 - Clone the repository and perform the setup by executing the following command after navigating to the project folder.
+
+```
     >> python setup.py install
-- To run the tests enter the following commands
+```
+
+- To run the tests enter the following commands.
+
+```
     >> cd test/
     >> py.test
-
+```
 
 #Using Models
 - To be updated..
