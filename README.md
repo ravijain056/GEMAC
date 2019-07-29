@@ -1,14 +1,16 @@
 # GEMAC
 
 [![Build Status](https://travis-ci.org/ravijain056/GEMAC.svg?branch=master)](https://travis-ci.org/ravijain056/GEMAC)
+
 [![Code Health](https://landscape.io/github/ravijain056/GEMAC/master/landscape.svg?style=flat)](https://landscape.io/github/ravijain056/GEMAC/master)
+
 [![Coverage Status](https://coveralls.io/repos/github/ravijain056/GEMAC/badge.svg?branch=master)](https://coveralls.io/github/ravijain056/GEMAC?branch=master)
 
 GEMAC implementation and tools.
 
 
 
-#Introduction
+# Introduction
 This repository hosts the MyHDL implementation of GEMAC which implements the MAC Sublayer in accordance with IEEE 802.3 2005 standard.
 This work was started under Google summer of Code Program 2016 and is a Work in Progress.
 
@@ -19,7 +21,7 @@ This work was started under Google summer of Code Program 2016 and is a Work in 
 
 Note: The install scripts under '/scripts/ci/' can be used to install MyHDL and Verilog.
 
-#Getting Started
+# Getting Started
 - Clone the repository and perform the setup by executing the following command after navigating to the project folder.
 
 ```
@@ -33,10 +35,10 @@ Note: The install scripts under '/scripts/ci/' can be used to install MyHDL and 
     >> py.test
 ```
 
-#Using Models
+# Using Models
 - To be updated..
 
-#Developers Applcation Notes
+# Developers Applcation Notes
 
 Xilinx User Guide for 1-GEMAC (UG144) is used as a major reference.
 http://www.xilinx.com/support/documentation/ip_documentation/gig_eth_mac_ug144.pdf
